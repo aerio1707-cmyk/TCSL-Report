@@ -1,15 +1,40 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { UploadPanel } from "./components/caseFiles/UploadPanel";
 import { FileTypeSummaryCard } from "./components/caseFiles/FileTypeSummaryCard";
 import { PreviewTable } from "./components/caseFiles/PreviewTable";
+import { DateRangeControls } from "./components/dispatch/DateRangeControls";
+import { TicketCountAnnotations } from "./components/dispatch/TicketCountAnnotations";
+import { TicketCountChart } from "./components/dispatch/TicketCountChart";
 import { analyzeUploads, type UploadAnalysisResult } from "./lib/caseFiles/analyzeUploads";
+import { buildTicketCountSeries, getDefaultDateRange, type Granularity } from "./lib/caseFiles/buildTicketCountSeries";
+
+interface ChartRange {
+  start: string;
+  end: string;
+  granularity: Granularity;
+}
 
 function App() {
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<UploadAnalysisResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [chartRange, setChartRange] = useState<ChartRange | null>(null);
+
+  useEffect(() => {
+    if (result?.dispatch) {
+      const { start, end } = getDefaultDateRange(result.dispatch.rows);
+      setChartRange({ start, end, granularity: "day" });
+    } else {
+      setChartRange(null);
+    }
+  }, [result]);
+
+  const buckets = useMemo(() => {
+    if (!result?.dispatch || !chartRange) return [];
+    return buildTicketCountSeries(result.dispatch.rows, chartRange);
+  }, [result, chartRange]);
 
   const handleFilesSelected = (newFiles: File[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
@@ -182,6 +207,20 @@ function App() {
                 { label: "notify_result 原文", render: (r) => r.notifyResult },
               ]}
             />
+          </section>
+        )}
+
+        {result?.dispatch && chartRange && (
+          <section className="panel">
+            <h2>開單數量統計</h2>
+            <DateRangeControls
+              start={chartRange.start}
+              end={chartRange.end}
+              granularity={chartRange.granularity}
+              onChange={setChartRange}
+            />
+            <TicketCountChart buckets={buckets} rangeLabel={`${chartRange.start} ~ ${chartRange.end}`} />
+            <TicketCountAnnotations buckets={buckets} />
           </section>
         )}
       </div>
