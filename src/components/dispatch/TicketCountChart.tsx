@@ -34,7 +34,11 @@ const BADGE_FILL = "#1c5cab";
 const BADGE_TEXT = "#ffffff";
 const BADGE_WIDTH = 128;
 const BADGE_HEIGHT = 40;
-const BADGE_FONT_SIZE = 19;
+const BADGE_FONT_SIZE = 21;
+
+// 中文用新細明體、英數字用 Calibri：瀏覽器依字元找不到 Calibri 的字形（中文）時，
+// 會自動往後找到新細明體，兩種字元各自吃到指定字體，不需要另外拆字串分開畫。
+const FONT_FAMILY = "Calibri, 'PMingLiU', '新細明體', sans-serif";
 
 function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -54,14 +58,15 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
       const c = prefersDark() ? CHART_COLORS.dark : CHART_COLORS.light;
 
       const option: echarts.EChartsOption = {
+        textStyle: { fontFamily: FONT_FAMILY },
         title: {
           text: "開單數量統計",
           subtext: rangeLabel,
           left: "center",
           top: 4,
           itemGap: 8,
-          textStyle: { fontSize: 19, color: c.primaryInk, fontWeight: 600 },
-          subtextStyle: { fontSize: 13, color: c.secondaryInk },
+          textStyle: { fontSize: 19, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
+          subtextStyle: { fontSize: 13, color: c.secondaryInk, fontFamily: FONT_FAMILY },
         },
         graphic: [
           {
@@ -85,7 +90,8 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
                   text: `總計 ${total}`,
                   fontWeight: "bold",
                   fill: BADGE_TEXT,
-                  font: `${BADGE_FONT_SIZE}px sans-serif`,
+                  fontSize: BADGE_FONT_SIZE,
+                  fontFamily: FONT_FAMILY,
                   align: "center",
                   verticalAlign: "middle",
                 },
@@ -98,20 +104,20 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
         xAxis: {
           type: "category",
           data: buckets.map((b) => b.label),
-          axisLabel: { fontSize: 12, color: c.mutedInk },
+          axisLabel: { fontSize: 12, color: c.mutedInk, fontFamily: FONT_FAMILY },
           axisLine: { lineStyle: { color: c.baseline } },
           axisTick: { show: false },
         },
         yAxis: {
           type: "value",
-          axisLabel: { color: c.mutedInk },
+          axisLabel: { color: c.mutedInk, fontFamily: FONT_FAMILY },
           splitLine: { lineStyle: { color: c.gridline, type: "solid" } },
         },
         series: [
           {
             type: "line",
             data: buckets.map((b) => b.total),
-            label: { show: true, position: "top", fontWeight: 600, color: c.primaryInk },
+            label: { show: true, position: "top", fontWeight: 600, color: c.primaryInk, fontFamily: FONT_FAMILY },
             lineStyle: { color: c.line, width: 2 },
             itemStyle: { color: c.line, borderColor: "transparent" },
             symbol: "circle",
@@ -120,6 +126,7 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
         ],
         tooltip: {
           trigger: "axis",
+          textStyle: { fontFamily: FONT_FAMILY },
           formatter: (params) => {
             const first = Array.isArray(params) ? params[0] : params;
             const idx = typeof first.dataIndex === "number" ? first.dataIndex : 0;
