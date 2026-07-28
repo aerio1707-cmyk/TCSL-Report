@@ -1,3 +1,5 @@
+import { buildCaseMaster, type CaseMasterResult } from "./buildCaseMaster";
+import { buildDispatchRows, type DispatchResult } from "./buildDispatchRows";
 import { dedupeRows } from "./dedupe";
 import { identifyFile } from "./identifyFile";
 import { readCaseExportFile } from "./parseCaseExport";
@@ -18,6 +20,8 @@ export interface UploadAnalysisResult {
   repairExport: FileTypeAnalysis<CaseExportRow> | null;
   reportExport: FileTypeAnalysis<CaseExportRow> | null;
   lampMaster: { fileNames: string[]; totalRows: number; rows: LampMasterRow[] } | null;
+  caseMaster: CaseMasterResult | null; // 需要 repairExport 或 reportExport 至少一種才會產出
+  dispatch: DispatchResult | null; // 需要 infoOrder 才會產出
   unrecognizedFiles: string[];
 }
 
@@ -67,7 +71,14 @@ export async function analyzeUploads(files: File[]): Promise<UploadAnalysisResul
     };
   }
 
-  return { infoOrder, repairExport, reportExport, lampMaster, unrecognizedFiles };
+  const caseMaster =
+    repairExport || reportExport
+      ? buildCaseMaster(repairExport?.rows ?? [], reportExport?.rows ?? [])
+      : null;
+
+  const dispatch = infoOrder ? buildDispatchRows(infoOrder.rows) : null;
+
+  return { infoOrder, repairExport, reportExport, lampMaster, caseMaster, dispatch, unrecognizedFiles };
 }
 
 async function buildAnalysis<T extends object>(

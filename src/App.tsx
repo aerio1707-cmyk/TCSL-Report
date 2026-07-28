@@ -2,6 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { UploadPanel } from "./components/caseFiles/UploadPanel";
 import { FileTypeSummaryCard } from "./components/caseFiles/FileTypeSummaryCard";
+import { PreviewTable } from "./components/caseFiles/PreviewTable";
 import { analyzeUploads, type UploadAnalysisResult } from "./lib/caseFiles/analyzeUploads";
 
 function App() {
@@ -120,6 +121,67 @@ function App() {
               <span className="summary-key">筆數</span>
               <span className="summary-value">{result.lampMaster.totalRows}</span>
             </div>
+          </section>
+        )}
+
+        {result?.caseMaster && (
+          <section className="panel">
+            <h2>案件主檔（維修案件統計）</h2>
+            <div className="summary-line">
+              <span className="summary-key">案件總數</span>
+              <span className="summary-value">
+                {result.caseMaster.rows.length}
+                <span className="summary-sub">
+                  已結案 {result.caseMaster.rows.filter((r) => r.isClosed).length}／
+                  未結案 {result.caseMaster.rows.filter((r) => !r.isClosed).length}
+                </span>
+              </span>
+            </div>
+            <div className="summary-line">
+              <span className="summary-key">已排除非智能燈</span>
+              <span className="summary-value">
+                維修案件匯出 {result.caseMaster.nonSmartLampRepairExcluded} 筆、報修清單匯出{" "}
+                {result.caseMaster.nonSmartLampReportExcluded} 筆（路燈編號非 7 位數）
+              </span>
+            </div>
+            <PreviewTable
+              rows={result.caseMaster.rows}
+              columns={[
+                { label: "案件編號", render: (r) => r.caseNo },
+                { label: "路燈編號", render: (r) => r.lampId },
+                { label: "行政區", render: (r) => r.district },
+                { label: "故障類別", render: (r) => r.faultType },
+                { label: "立案日期", render: (r) => r.filedDate },
+                { label: "完工時間", render: (r) => r.completedTime || "（未結案）" },
+                { label: "案件狀態", render: (r) => r.status },
+              ]}
+            />
+          </section>
+        )}
+
+        {result?.dispatch && (
+          <section className="panel">
+            <h2>自主API派工</h2>
+            <div className="summary-line">
+              <span className="summary-key">告警總數</span>
+              <span className="summary-value">
+                {result.dispatch.rows.length}
+                <span className="summary-sub">
+                  已比對到報修單號 {result.dispatch.matchedCount}／未比對到 {result.dispatch.unmatchedCount}
+                </span>
+              </span>
+            </div>
+            <PreviewTable
+              rows={result.dispatch.rows}
+              columns={[
+                { label: "系統開單時間", render: (r) => r.creationTime },
+                { label: "類型", render: (r) => r.type },
+                { label: "行政區", render: (r) => r.district },
+                { label: "燈桿編號", render: (r) => r.polesId },
+                { label: "報修單號", render: (r) => r.ticketNo || "（未比對到）" },
+                { label: "notify_result 原文", render: (r) => r.notifyResult },
+              ]}
+            />
           </section>
         )}
       </div>

@@ -65,3 +65,29 @@ export interface LampMasterRow {
   poleType: string; // 燈桿類型
   sourceFile: string;
 }
+
+// 案件主檔（對應舊「維修案件統計」）：一案一列，已篩選智能燈（路燈編號 7 碼），
+// 合併報修清單匯出（未結案）與維修案件匯出（已結案）。
+export interface CaseMasterRow {
+  caseNo: string;
+  lampId: string;
+  fixtureId: string;
+  controllerId: string;
+  district: string;
+  faultType: string;
+  reportSource: string;
+  filedDate: string;
+  overdueHours: string;
+  repairReason: string;
+  workContent: string;
+  completedTime: string; // 空字串代表尚未結案
+  status: string;
+  note: string;
+  isClosed: boolean;
+  sourceFile: string;
+}
+
+// 自主API派工：Info_Order 逐筆資料 + 比對到的報修單號。
+export interface DispatchRow extends InfoOrderRow {
+  ticketNo: string; // 空字串代表沒比對到報修單號
+}
