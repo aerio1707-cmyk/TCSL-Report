@@ -61,7 +61,7 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <h1>TCSL-Report 智慧派工與統計分析系統</h1>
+        <h1>路燈案件統計分析系統</h1>
       </header>
 
       <div className="page-shell">
