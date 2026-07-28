@@ -1,32 +1,44 @@
-# React + TypeScript + Vite
+# TCSL-Report 智慧派工與統計分析系統
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**純前端執行，資料不會上傳到任何伺服器**——所有解析、去重、比對都在瀏覽器裡完成。跟
+ESS-Report-Tracker 讀同一批智慧路燈來源資料，但視角不同：這裡是派工管理／開單量統計，
+不是稽核／分類。
 
-Currently, two official plugins are available:
+## 本機開發
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+開啟瀏覽器造訪 `http://localhost:5173`。
+
+## 部署到 GitHub Pages
+
+推送到 `main` 分支後，`.github/workflows/deploy.yml` 會自動建置並部署到 GitHub Pages。
+第一次使用前，需要到 repo 的 Settings → Pages，將 Source 設為 **GitHub Actions**。
+
+## 來源檔案
+
+固定放在 `桌面\Report\`，依檔名關鍵字自動辨識，不用照固定順序上傳：
+
+- `Info_Order*.csv`：系統告警／派案排序（自主API派工資料來源）
+- `維修案件匯出*.xlsx`：已結案案件（隨資料增加會變成 `維修案件匯出 (1).xlsx`…）
+- `報修清單匯出*.xlsx`：未結案／受理中案件
+- `智能燈清冊*.xlsx`：智能燈主檔，判定路燈編號是否為智能燈（7 位數）用
+
+## 去重規則
+
+沿用 ESS-Report-Tracker「維修案件分析」頁籤驗證過的規則（`src/lib/caseFiles/dedupe.ts`），
+對 Info_Order／維修案件匯出／報修清單匯出三種來源檔案各自套用：
+
+- **完全重複**（主鍵＋其餘所有欄位皆相同）自動排除，只保留一筆。
+- **主鍵重複但內容不同**（案件編號不保證唯一，是這批資料的已知資料品質問題）全部保留計算，
+  只跳警示、列出明細供人工複查，不自動判斷哪一筆才對。
+
+## 開發階段
+
+- [x] Phase 1：多檔讀取、檔名比對、全欄位去重
+- [ ] Phase 2：智能燈範圍篩選（路燈編號 7 位數）、案件主檔合併、自主API派工報修單號擷取
+- [ ] Phase 3：時間週期選取器、開單數量統計折線圖＋類別註解
+- [ ] Phase 4：Excel 匯出（`維修案件統計.xlsx`／`自主API派工.xlsx`）、邊界測試
