@@ -24,6 +24,17 @@
   background: var(--code-bg);
 }
 
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.panel-header-row h2 {
+  margin: 0;
+}
+
 .field-row {
   display: flex;
   align-items: center;

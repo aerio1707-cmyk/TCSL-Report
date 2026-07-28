@@ -8,6 +8,8 @@ import { TicketCountAnnotations } from "./components/dispatch/TicketCountAnnotat
 import { TicketCountChart } from "./components/dispatch/TicketCountChart";
 import { analyzeUploads, type UploadAnalysisResult } from "./lib/caseFiles/analyzeUploads";
 import { buildTicketCountSeries, getDefaultDateRange, type Granularity } from "./lib/caseFiles/buildTicketCountSeries";
+import { exportCaseMasterWorkbook } from "./lib/caseFiles/exportCaseMaster";
+import { exportDispatchWorkbook } from "./lib/caseFiles/exportDispatch";
 
 interface ChartRange {
   start: string;
@@ -151,7 +153,21 @@ function App() {
 
         {result?.caseMaster && (
           <section className="panel">
-            <h2>案件主檔（維修案件統計）</h2>
+            <div className="panel-header-row">
+              <h2>案件主檔（維修案件統計）</h2>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() =>
+                  exportCaseMasterWorkbook(result.caseMaster!.rows, [
+                    ...(result.repairExport?.collisions ?? []),
+                    ...(result.reportExport?.collisions ?? []),
+                  ])
+                }
+              >
+                下載維修案件統計.xlsx
+              </button>
+            </div>
             <div className="summary-line">
               <span className="summary-key">案件總數</span>
               <span className="summary-value">
@@ -186,7 +202,16 @@ function App() {
 
         {result?.dispatch && (
           <section className="panel">
-            <h2>自主API派工</h2>
+            <div className="panel-header-row">
+              <h2>自主API派工</h2>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => exportDispatchWorkbook(result.dispatch!.rows)}
+              >
+                下載自主API派工.xlsx
+              </button>
+            </div>
             <div className="summary-line">
               <span className="summary-key">告警總數</span>
               <span className="summary-value">
