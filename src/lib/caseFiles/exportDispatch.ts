@@ -2,18 +2,22 @@ import * as XLSX from "xlsx";
 import { jsonToSheetWithHeaders } from "./sheetUtils";
 import type { CaseMasterRow, DispatchRow } from "./types";
 
+// 前 7 欄完全依照舊 xlsm「自主API派工」分頁左半邊（藍色圖例區塊下）的欄位
+// 順序與命名排列：系統開單時間/類型/區域/控制器編號/燈桿編號/已通知/通知時間
+// （原檔案欄位是「區域」不是「行政區」）。不需要 idx，直接移除。
+// 其餘欄位（故障內容、路燈序號等原檔案沒有的補充資訊，以及報修單號＋案件詳情）
+// 排在這 7 欄之後。
 const HEADERS = [
-  "idx",
-  "類型",
-  "行政區",
-  "故障內容",
-  "已通知",
-  "通知時間",
   "系統開單時間",
-  "路燈序號",
-  "notify_result原文",
+  "類型",
+  "區域",
   "控制器編號",
   "燈桿編號",
+  "已通知",
+  "通知時間",
+  "故障內容",
+  "路燈序號",
+  "notify_result原文",
   "備註",
   "報修單號",
   "案件立案日期",
@@ -41,17 +45,16 @@ export function exportDispatchWorkbook(rows: DispatchRow[], caseRows: CaseMaster
   const data = rows.map((r) => {
     const matched = r.ticketNo ? caseByNo.get(r.ticketNo) : undefined;
     return {
-      idx: r.idx,
-      類型: r.type,
-      行政區: r.district,
-      故障內容: r.content,
-      已通知: r.notify,
-      通知時間: r.notifyTime,
       系統開單時間: r.creationTime,
-      路燈序號: r.streetlightId,
-      notify_result原文: r.notifyResult,
+      類型: r.type,
+      區域: r.district,
       控制器編號: r.controllerId,
       燈桿編號: r.polesId,
+      已通知: r.notify,
+      通知時間: r.notifyTime,
+      故障內容: r.content,
+      路燈序號: r.streetlightId,
+      notify_result原文: r.notifyResult,
       備註: r.note,
       報修單號: r.ticketNo,
       案件立案日期: matched?.filedDate ?? "",
