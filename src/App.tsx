@@ -207,7 +207,7 @@ function App() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => exportDispatchWorkbook(result.dispatch!.rows)}
+                onClick={() => exportDispatchWorkbook(result.dispatch!.rows, result.caseMaster?.rows ?? [])}
               >
                 下載自主API派工.xlsx
               </button>
