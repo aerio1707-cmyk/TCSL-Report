@@ -237,8 +237,19 @@
 .annotation-grid {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .annotation-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .annotation-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .annotation-card {

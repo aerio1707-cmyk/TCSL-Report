@@ -4,15 +4,23 @@ interface Props {
   buckets: PeriodBucket[];
 }
 
-// 對應規劃文件「類別註記版」：每個資料點列出當期各類別數量明細；
-// 「整排路燈不亮」額外列出受影響行政區。目前先每個行政區各自一行，
-// 排版細節（分區列出 vs 合併成一行）等畫面出來後再依使用者回饋調整。
+const MAX_CARDS = 4;
+
+// 對應規劃文件「類別註記版」：列出當期各類別數量明細；「整排路燈不亮」額外
+// 分區列出受影響行政區（使用者已確認保留這個排版）。畫面容易顯得雜亂，
+// 依使用者回饋只顯示選定區間內數量最多的 4 個期間（單行四個區塊），
+// 其餘期間仍然計入圖表本身，只是不再逐一列出明細卡片。
 export function TicketCountAnnotations({ buckets }: Props) {
   if (buckets.length === 0) return null;
 
+  const topBuckets = [...buckets]
+    .sort((a, b) => b.total - a.total)
+    .slice(0, MAX_CARDS)
+    .sort((a, b) => a.key.localeCompare(b.key));
+
   return (
     <div className="annotation-grid">
-      {buckets.map((bucket) => (
+      {topBuckets.map((bucket) => (
         <div className="annotation-card" key={bucket.key}>
           <div className="annotation-card-title">
             {bucket.label}
