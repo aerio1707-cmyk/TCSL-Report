@@ -34,7 +34,7 @@ const BADGE_FILL = "#1c5cab";
 const BADGE_TEXT = "#ffffff";
 const BADGE_WIDTH = 128;
 const BADGE_HEIGHT = 40;
-const BADGE_FONT_SIZE = 21;
+const BADGE_FONT_SIZE = 18;
 
 // 中文用新細明體、英數字用 Calibri：瀏覽器依字元找不到 Calibri 的字形（中文）時，
 // 會自動往後找到新細明體，兩種字元各自吃到指定字體，不需要另外拆字串分開畫。
@@ -65,7 +65,7 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
           left: "center",
           top: 4,
           itemGap: 8,
-          textStyle: { fontSize: 19, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
+          textStyle: { fontSize: 23, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
           subtextStyle: { fontSize: 13, color: c.secondaryInk, fontFamily: FONT_FAMILY },
         },
         graphic: [
