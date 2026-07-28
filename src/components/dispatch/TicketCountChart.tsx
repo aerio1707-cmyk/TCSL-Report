@@ -32,6 +32,9 @@ const CHART_COLORS = {
 // 不再是原本「淡黃底＋深咖啡邊框」那種互不相干的配色。
 const BADGE_FILL = "#1c5cab";
 const BADGE_TEXT = "#ffffff";
+const BADGE_WIDTH = 128;
+const BADGE_HEIGHT = 40;
+const BADGE_FONT_SIZE = 19;
 
 function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -62,24 +65,32 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
         },
         graphic: [
           {
-            type: "rect",
+            // rect 跟 text 包在同一個 group 裡，文字用 group 內的區域座標定位
+            // （x/y 直接抓寬高的一半），不管總計是 3 位數還是 4 位數，文字的
+            // 置中錨點都固定在矩形正中央，不會因為文字量測寬度不同而偏移。
+            type: "group",
             right: 24,
             top: 10,
-            shape: { width: 108, height: 34, r: 17 },
-            style: { fill: BADGE_FILL },
-          },
-          {
-            type: "text",
-            right: 78,
-            top: 27,
-            style: {
-              text: `總計 ${total}`,
-              fontWeight: "bold",
-              fill: BADGE_TEXT,
-              font: "16px sans-serif",
-              align: "center",
-              verticalAlign: "middle",
-            },
+            children: [
+              {
+                type: "rect",
+                shape: { x: 0, y: 0, width: BADGE_WIDTH, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
+                style: { fill: BADGE_FILL },
+              },
+              {
+                type: "text",
+                x: BADGE_WIDTH / 2,
+                y: BADGE_HEIGHT / 2,
+                style: {
+                  text: `總計 ${total}`,
+                  fontWeight: "bold",
+                  fill: BADGE_TEXT,
+                  font: `${BADGE_FONT_SIZE}px sans-serif`,
+                  align: "center",
+                  verticalAlign: "middle",
+                },
+              },
+            ],
           },
         ],
         // 標題區塊跟折線圖之間留出明確間距，避免副標題貼著圖表頂端。
