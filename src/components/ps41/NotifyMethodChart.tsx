@@ -141,8 +141,8 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           subtextStyle: { fontSize: 13, color: c.secondaryInk, fontFamily: FONT_FAMILY },
         },
         graphic,
-        grid: { left: 48, right: 56, top: 165, bottom: 60 },
-        legend: { top: 132, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
+        grid: { left: 48, right: 56, top: 195, bottom: 60 },
+        legend: { top: 130, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
         xAxis: {
           type: "category",
           data: weeks.map((w) => w.weekLabel),
@@ -161,6 +161,10 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
               {
                 type: "value",
                 name: "FAIL",
+                min: 0,
+                // 格線上限值要略高於最高的 FAIL 數值，不然長條頂端的數字標籤會被
+                // 上方徽章/圖例擋住看不到（例如最大值=1 時，軸上限至少要到 1.2）。
+                max: (value: { max: number }) => Math.max(1, value.max) * 1.2,
                 axisLabel: { color: c.mutedInk, fontFamily: FONT_FAMILY },
                 splitLine: { show: false },
               },
