@@ -271,7 +271,7 @@
 }
 
 .annotation-card-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-h);
   margin-bottom: 6px;
@@ -292,7 +292,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-h);
 }
 
@@ -303,7 +303,7 @@
 
 .annotation-districts {
   color: var(--text);
-  font-size: 11px;
+  font-size: 13px;
 }
 
 @media (max-width: 720px) {
