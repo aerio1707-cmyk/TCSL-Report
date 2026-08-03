@@ -10,6 +10,7 @@ import { exportAnalysisListWorkbook, exportFailListWorkbook } from "../lib/ps41/
 import { exportWeeklyReportWorkbook } from "../lib/ps41/exportWeeklyReport";
 import { applyReviewDecisions, exportReviewDecisions, parseReviewDecisionFile } from "../lib/ps41/reviewDecisions";
 import type { AnalysisCandidateRow } from "../lib/ps41/types";
+import { formatWeekRangeAsDates } from "../lib/ps41/weekBucket";
 
 type Step = "upload" | "review" | "range" | "output";
 
@@ -38,11 +39,7 @@ export function Ps41Page() {
     return filterWeeklyStatsRange(weeklyStatsFull, weekRange.startWeekKey, weekRange.endWeekKey);
   }, [weeklyStatsFull, weekRange]);
 
-  const rangeLabel = weekRange
-    ? `${availableWeeks.find((w) => w.weekKey === weekRange.startWeekKey)?.weekLabel ?? ""} ~ ${
-        availableWeeks.find((w) => w.weekKey === weekRange.endWeekKey)?.weekLabel ?? ""
-      }`
-    : "";
+  const rangeLabel = weekRange ? formatWeekRangeAsDates(weekRange.startWeekKey, weekRange.endWeekKey) : "";
 
   const handleFilesSelected = (newFiles: File[]) => {
     setFiles((prev) => [...prev, ...newFiles]);
