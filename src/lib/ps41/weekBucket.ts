@@ -38,10 +38,10 @@ export function weekBucketOf(date: Date): WeekBucketInfo {
   };
 }
 
-// 把「週次範圍」（週一 weekKey）轉成日期區間文字，例："2026/1/1 - 2026/7/19"：
+// 把「週次範圍」（週一 weekKey）轉成日期區間文字，例："2026/01/01 - 2026/07/19"：
 // 起始＝起始週的週一，結束＝結束週的週日（週一 + 6 天）。
 export function formatWeekRangeAsDates(startWeekKey: string, endWeekKey: string): string {
-  const formatYmd = (d: Date) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  const formatYmd = (d: Date) => `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
   const start = new Date(`${startWeekKey}T00:00:00`);
   const endMonday = new Date(`${endWeekKey}T00:00:00`);
   const end = new Date(endMonday.getFullYear(), endMonday.getMonth(), endMonday.getDate() + 6);
