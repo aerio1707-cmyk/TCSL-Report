@@ -107,10 +107,17 @@ export function Ps41Page() {
             </span>
           </div>
           <div className="summary-line">
+            <span className="summary-key">已排除非智能燈</span>
+            <span className="summary-value">
+              維修案件匯出 {result.nonSmartLampRepairExcluded} 筆、報修清單匯出 {result.nonSmartLampReportExcluded} 筆
+              <span className="summary-sub">路燈編號非 7 位數，不影響任何最終產出</span>
+            </span>
+          </div>
+          <div className="summary-line">
             <span className="summary-key">控制器編號空白</span>
             <span className="summary-value">
               {result.unclassifiedByBlankController} 筆
-              <span className="summary-sub">未列入清冊/非清冊統計（智能燈判定需路燈編號7碼且控制器編號非空白）</span>
+              <span className="summary-sub">智能燈案件中控制器編號未填的部分，未列入清冊/非清冊統計</span>
             </span>
           </div>
           <div className="summary-line">

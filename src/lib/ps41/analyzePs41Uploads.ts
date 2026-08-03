@@ -24,10 +24,12 @@ export interface Ps41AnalysisResult {
   // 不能讓「案件總數」跟「上傳筆數」對不上卻沒有任何說明。
   repairCollisions: CaseExportRow[];
   reportCollisions: CaseExportRow[];
+  nonSmartLampRepairExcluded: number;
+  nonSmartLampReportExcluded: number;
 }
 
-// 跟既有「案件主檔」頁籤共用同一套檔案辨識/解析/去重模組，但這裡合併全部案件
-// 不做 7 碼智能燈預先篩選（見 buildAllCaseRows 註解）。
+// 跟既有「案件主檔」頁籤共用同一套檔案辨識/解析/去重模組，合併時同樣先篩掉
+// 非智能燈案件（見 buildAllCaseRows 註解）。
 export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisResult> {
   const infoOrderFiles: File[] = [];
   const repairExportFiles: File[] = [];
@@ -65,8 +67,8 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
   const lampMasterRows: LampMasterRow[] = (await Promise.all(lampMasterFiles.map(readLampMasterFile))).flat();
   const lampSet = new Set(lampMasterRows.map((r) => r.lampId).filter((id) => id !== ""));
 
-  const allCaseRows = buildAllCaseRows(repairDedup.rows, reportDedup.rows);
-  const classifiedRows = classifyAllCases(allCaseRows, lampSet);
+  const allCaseRowsResult = buildAllCaseRows(repairDedup.rows, reportDedup.rows);
+  const classifiedRows = classifyAllCases(allCaseRowsResult.rows, lampSet);
 
   const infoOrderIndex = buildInfoOrderIndex(infoOrderDedup.rows);
   const candidates = buildAnalysisCandidates(classifiedRows, infoOrderIndex);
@@ -74,7 +76,7 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
   return {
     classifiedRows,
     candidates,
-    totalCaseRows: allCaseRows.length,
+    totalCaseRows: allCaseRowsResult.rows.length,
     unclassifiedByBlankController: countUnclassifiedByBlankController(classifiedRows),
     duplicateRowsRemoved: infoOrderDedup.duplicateRowsRemoved + repairDedup.duplicateRowsRemoved + reportDedup.duplicateRowsRemoved,
     infoOrderRows: infoOrderDedup.rows.length,
@@ -82,5 +84,7 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
     unrecognizedFiles,
     repairCollisions: repairDedup.collisions,
     reportCollisions: reportDedup.collisions,
+    nonSmartLampRepairExcluded: allCaseRowsResult.nonSmartLampRepairExcluded,
+    nonSmartLampReportExcluded: allCaseRowsResult.nonSmartLampReportExcluded,
   };
 }

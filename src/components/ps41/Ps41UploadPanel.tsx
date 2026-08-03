@@ -48,12 +48,12 @@ export function Ps41UploadPanel({ fileNames, busy, onFilesSelected, onAnalyze }:
           <li>
             <span className="input-help-name">處理範圍</span>
             <span className="input-help-rule">
-              跟「案件主檔」頁籤不同：這裡用到全部案件（清冊/非清冊都要統計），不會先篩掉非智能燈案件
+              只處理智能燈案件（路燈編號 7 位數），非智能燈案件會先篩掉；智能燈再依控制器編號是否已建檔分清冊/非清冊統計
             </span>
           </li>
           <li>
-            <span className="input-help-name">智能燈判定</span>
-            <span className="input-help-rule">路燈編號 7 碼 且 控制器編號非空白，兩者缺一都不列入清冊/非清冊統計</span>
+            <span className="input-help-name">清冊/非清冊</span>
+            <span className="input-help-rule">智能燈案件中控制器編號空白的部分無法判定，不列入清冊/非清冊統計（畫面會顯示筆數）</span>
           </li>
           <li>
             <span className="input-help-name">處理位置</span>

@@ -14,7 +14,7 @@ function App() {
         <h1>路燈案件統計分析系統</h1>
         <nav className="tab-nav">
           <button type="button" className={`tab-btn${tab === "caseFiles" ? " active" : ""}`} onClick={() => setTab("caseFiles")}>
-            案件主檔／自主API派工
+            維修案件統計
           </button>
           <button type="button" className={`tab-btn${tab === "ps41" ? " active" : ""}`} onClick={() => setTab("ps41")}>
             PS4.1 分析系統
