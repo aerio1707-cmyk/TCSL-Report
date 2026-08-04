@@ -118,6 +118,10 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         ],
       }));
 
+      // 相近數值的標籤原本會直接疊在一起看不清楚，用 labelLayout.moveOverlap
+      // 讓 ECharts 偵測重疊後自動垂直堆疊（無間距緊貼），不用手動算偏移量。
+      const noOverlapLabelLayout: echarts.LineSeriesOption["labelLayout"] = { moveOverlap: "shiftY" };
+
       const series: echarts.EChartsOption["series"] = [
         {
           name: "系統開單",
@@ -125,6 +129,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           data: weeks.map((w) => w.systemCount),
           yAxisIndex: 0,
           label: valueLabelStyle(c.system, c.primaryInk, isDark),
+          labelLayout: noOverlapLabelLayout,
           lineStyle: { color: c.system, width: 2 },
           itemStyle: { color: c.system },
           symbol: "circle",
@@ -136,6 +141,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           data: weeks.map((w) => w.citizenCount),
           yAxisIndex: 0,
           label: valueLabelStyle(c.citizen, c.primaryInk, isDark),
+          labelLayout: noOverlapLabelLayout,
           lineStyle: { color: c.citizen, width: 2 },
           itemStyle: { color: c.citizen },
           symbol: "circle",
@@ -149,6 +155,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           data: weeks.map((w) => w.failCount),
           yAxisIndex: 1,
           label: valueLabelStyle(c.fail, c.primaryInk, isDark),
+          labelLayout: noOverlapLabelLayout,
           itemStyle: { color: c.fail },
           barWidth: "40%",
         });
