@@ -46,6 +46,29 @@ function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// 數值標籤加上圓角外框＋對應類別的淡色底色（比照參考截圖），底色用該類別
+// 主色的透明版本，深色模式提高不透明度維持辨識度。
+function valueLabelStyle(color: string, textColor: string, isDark: boolean) {
+  return {
+    show: true,
+    position: "top" as const,
+    fontWeight: 600,
+    color: textColor,
+    fontFamily: FONT_FAMILY,
+    fontSize: 11,
+    backgroundColor: hexToRgba(color, isDark ? 0.32 : 0.16),
+    borderRadius: 4,
+    padding: [2, 6] as [number, number],
+  };
+}
+
 export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +78,8 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
     const chart = echarts.init(el);
 
     const render = () => {
-      const c = prefersDark() ? COLORS.dark : COLORS.light;
+      const isDark = prefersDark();
+      const c = isDark ? COLORS.dark : COLORS.light;
       const systemTotal = weeks.reduce((s, w) => s + w.systemCount, 0);
       const citizenTotal = weeks.reduce((s, w) => s + w.citizenCount, 0);
       const failTotal = weeks.reduce((s, w) => s + w.failCount, 0);
@@ -100,7 +124,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           type: "line",
           data: weeks.map((w) => w.systemCount),
           yAxisIndex: 0,
-          label: { show: true, position: "top", fontWeight: 600, color: c.primaryInk, fontFamily: FONT_FAMILY, fontSize: 11 },
+          label: valueLabelStyle(c.system, c.primaryInk, isDark),
           lineStyle: { color: c.system, width: 2 },
           itemStyle: { color: c.system },
           symbol: "circle",
@@ -111,7 +135,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           type: "line",
           data: weeks.map((w) => w.citizenCount),
           yAxisIndex: 0,
-          label: { show: true, position: "top", fontWeight: 600, color: c.primaryInk, fontFamily: FONT_FAMILY, fontSize: 11 },
+          label: valueLabelStyle(c.citizen, c.primaryInk, isDark),
           lineStyle: { color: c.citizen, width: 2 },
           itemStyle: { color: c.citizen },
           symbol: "circle",
@@ -124,6 +148,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           type: "bar",
           data: weeks.map((w) => w.failCount),
           yAxisIndex: 1,
+          label: valueLabelStyle(c.fail, c.primaryInk, isDark),
           itemStyle: { color: c.fail },
           barWidth: "40%",
         });
