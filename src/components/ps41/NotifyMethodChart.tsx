@@ -65,8 +65,52 @@ function valueLabelStyle(color: string, textColor: string, isDark: boolean) {
     fontSize: 11,
     backgroundColor: hexToRgba(color, isDark ? 0.32 : 0.16),
     borderRadius: 4,
-    padding: [2, 6] as [number, number],
+    padding: [3, 6] as [number, number],
   };
+}
+
+// 標籤盒子的實際渲染高度（fontSize 11 + 上下 padding 各 3），堆疊間距直接用
+// 這個高度當作「無間距緊貼」的邊界，多一點點就會有縫隙、少一點點就會疊在一起。
+const LABEL_BOX_HEIGHT = 20;
+// 兩個數值在圖表上的相對位置（0~1，換算自各自座標軸的量測範圍）差距小於這個
+// 門檻，就視為「太靠近會擋住底色」，需要垂直往上堆疊分開。
+const STACK_COLLISION_THRESHOLD = 0.045;
+
+type StackKey = "system" | "citizen" | "fail";
+
+// 逐週計算三個數列（系統開單／民眾通報／FAIL）彼此需要往上堆疊幾層，用數值在
+// 各自座標軸的正規化位置（0~1）判斷是否太靠近——兩個 y 軸共用同一塊繪圖區
+// 高度，正規化位置可以直接跨軸比較，不需要另外呼叫 convertToPixel。
+function computeStackLevels(
+  weeks: WeeklyChannelBreakdown[],
+  primaryMax: number,
+  failMax: number,
+  showFail: boolean
+): Record<StackKey, number>[] {
+  return weeks.map((w) => {
+    const entries: { key: StackKey; norm: number }[] = [
+      { key: "system", norm: w.systemCount / primaryMax },
+      { key: "citizen", norm: w.citizenCount / primaryMax },
+    ];
+    if (showFail) entries.push({ key: "fail", norm: w.failCount / failMax });
+    entries.sort((a, b) => a.norm - b.norm);
+
+    const levels: Record<StackKey, number> = { system: 0, citizen: 0, fail: 0 };
+    let level = 0;
+    entries.forEach((entry, i) => {
+      if (i > 0 && entry.norm - entries[i - 1].norm < STACK_COLLISION_THRESHOLD) {
+        level++;
+      } else {
+        level = 0;
+      }
+      levels[entry.key] = level;
+    });
+    return levels;
+  });
+}
+
+function stackedLabelLayout(levels: Record<StackKey, number>[], key: StackKey): echarts.LineSeriesOption["labelLayout"] {
+  return (params) => ({ dy: -(levels[params.dataIndex ?? 0]?.[key] ?? 0) * LABEL_BOX_HEIGHT });
 }
 
 export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props) {
@@ -118,9 +162,13 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         ],
       }));
 
-      // 相近數值的標籤原本會直接疊在一起看不清楚，用 labelLayout.moveOverlap
-      // 讓 ECharts 偵測重疊後自動垂直堆疊（無間距緊貼），不用手動算偏移量。
-      const noOverlapLabelLayout: echarts.LineSeriesOption["labelLayout"] = { moveOverlap: "shiftY" };
+      // 相近數值的標籤原本會直接疊在一起看不清楚（ECharts 內建的
+      // labelLayout.moveOverlap 沒有把 backgroundColor/padding 的視覺大小算
+      // 準，堆疊後盒子還是會互相蓋住），改成自己算每個數列在各週要往上堆疊
+      // 幾層，堆疊間距固定用標籤盒子的實際高度，達到「盒子邊框無間距緊貼」。
+      const primaryMax = Math.max(1, ...weeks.map((w) => Math.max(w.systemCount, w.citizenCount)));
+      const failMax = Math.max(1, ...weeks.map((w) => w.failCount)) * 1.2;
+      const stackLevels = computeStackLevels(weeks, primaryMax, failMax, showFail);
 
       const series: echarts.EChartsOption["series"] = [
         {
@@ -129,7 +177,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           data: weeks.map((w) => w.systemCount),
           yAxisIndex: 0,
           label: valueLabelStyle(c.system, c.primaryInk, isDark),
-          labelLayout: noOverlapLabelLayout,
+          labelLayout: stackedLabelLayout(stackLevels, "system"),
           lineStyle: { color: c.system, width: 2 },
           itemStyle: { color: c.system },
           symbol: "circle",
@@ -141,7 +189,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           data: weeks.map((w) => w.citizenCount),
           yAxisIndex: 0,
           label: valueLabelStyle(c.citizen, c.primaryInk, isDark),
-          labelLayout: noOverlapLabelLayout,
+          labelLayout: stackedLabelLayout(stackLevels, "citizen"),
           lineStyle: { color: c.citizen, width: 2 },
           itemStyle: { color: c.citizen },
           symbol: "circle",
@@ -155,7 +203,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           data: weeks.map((w) => w.failCount),
           yAxisIndex: 1,
           label: valueLabelStyle(c.fail, c.primaryInk, isDark),
-          labelLayout: noOverlapLabelLayout,
+          labelLayout: stackedLabelLayout(stackLevels, "fail"),
           itemStyle: { color: c.fail },
           barWidth: "40%",
         });
