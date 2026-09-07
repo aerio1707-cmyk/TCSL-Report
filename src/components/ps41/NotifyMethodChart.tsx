@@ -1,6 +1,7 @@
 import * as echarts from "echarts";
 import { useEffect, useRef } from "react";
 import type { WeeklyChannelBreakdown } from "../../lib/ps41/types";
+import { formatWeekRangeAsDates } from "../../lib/ps41/weekBucket";
 
 interface Props {
   title: string;
@@ -255,7 +256,22 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
               splitLine: { lineStyle: { color: c.gridline, type: "solid" } },
             },
         series,
-        tooltip: { trigger: "axis", textStyle: { fontFamily: FONT_FAMILY } },
+        // 軸標籤只有 "M月/WN"、不含年份，資料橫跨年度時可能重複出現在軸上，
+        // tooltip 額外標出完整日期區間（含年份）消除歧義。
+        tooltip: {
+          trigger: "axis",
+          textStyle: { fontFamily: FONT_FAMILY },
+          formatter: (rawParams) => {
+            const params = Array.isArray(rawParams) ? rawParams : [rawParams];
+            if (params.length === 0) return "";
+            const idx = params[0].dataIndex ?? 0;
+            const week = weeks[idx];
+            if (!week) return "";
+            const dateRange = formatWeekRangeAsDates(week.weekKey, week.weekKey);
+            const lines = params.map((p) => `${p.marker ?? ""}${p.seriesName}：${p.value}`).join("<br/>");
+            return `${week.weekLabel}　${dateRange}<br/>${lines}`;
+          },
+        },
       };
 
       chart.setOption(option, true);

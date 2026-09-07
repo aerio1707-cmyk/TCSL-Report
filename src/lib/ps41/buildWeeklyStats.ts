@@ -10,13 +10,13 @@ function emptyChannelRecord(): Record<ChannelLabel, number> {
 
 interface MutableBucket extends WeeklyChannelBreakdown {}
 
-function newBucket(weekKey: string, weekLabel: string): MutableBucket {
-  return { weekKey, weekLabel, systemCount: 0, citizenCount: 0, failCount: 0, channels: emptyChannelRecord() };
+function newBucket(weekKey: string, weekYear: number, weekLabel: string): MutableBucket {
+  return { weekKey, weekYear, weekLabel, systemCount: 0, citizenCount: 0, failCount: 0, channels: emptyChannelRecord() };
 }
 
 // 週次範圍：資料裡「立案日期」有值的全部案件（不受清冊/非清冊分類影響），
 // 確保清冊/非清冊兩個區塊用同一組週次清單，方便圖表/總表(周)並排比對。
-export function fullWeekRange(rows: ClassifiedCaseRow[]): { weekKey: string; weekLabel: string }[] {
+export function fullWeekRange(rows: ClassifiedCaseRow[]): { weekKey: string; weekYear: number; weekLabel: string }[] {
   let min: Date | null = null;
   let max: Date | null = null;
   for (const row of rows) {
@@ -37,8 +37,8 @@ export function buildWeeklyStats(
   const listedMap = new Map<string, MutableBucket>();
   const unlistedMap = new Map<string, MutableBucket>();
   for (const w of weeks) {
-    listedMap.set(w.weekKey, newBucket(w.weekKey, w.weekLabel));
-    unlistedMap.set(w.weekKey, newBucket(w.weekKey, w.weekLabel));
+    listedMap.set(w.weekKey, newBucket(w.weekKey, w.weekYear, w.weekLabel));
+    unlistedMap.set(w.weekKey, newBucket(w.weekKey, w.weekYear, w.weekLabel));
   }
 
   for (const row of classifiedRows) {

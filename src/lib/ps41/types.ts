@@ -25,7 +25,8 @@ export interface ClassifiedCaseRow {
   status: string;
   sourceFile: string;
   weekKey: string | null; // 週一日期 yyyy-mm-dd，供排序用
-  weekLabel: string | null; // "M月/WN"
+  weekYear: number | null; // 週次歸屬年度（多數決）
+  weekLabel: string | null; // "M月/WN"，不含年份
   lampListStatus: LampListStatus | null; // null = 控制器編號空白，未列入清冊/非清冊統計
   notifyCategory: NotifyCategory | null; // null = 通報來源無法辨識（理論上不會發生）
 }
@@ -61,6 +62,7 @@ export type ChannelLabel = (typeof CHANNEL_LABELS)[number];
 
 export interface WeeklyChannelBreakdown {
   weekKey: string;
+  weekYear: number;
   weekLabel: string;
   systemCount: number; // 系統開單 = 自主API + 承商自主通報
   citizenCount: number; // 民眾通報 = 其餘 6 類
