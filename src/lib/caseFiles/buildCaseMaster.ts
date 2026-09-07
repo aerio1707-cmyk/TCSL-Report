@@ -10,6 +10,17 @@ export function isSmartLampId(lampId: string): boolean {
   return lampId.length === SMART_LAMP_ID_LENGTH;
 }
 
+// 撞號明細（案件編號相同但內容不同）只給智能燈案件參考：非智能燈本來就不影響
+// 任何最終產出（案件主檔/PS4.1 統計都只算智能燈），混進非智能燈的列只會讓人
+// 誤以為要複查不相干的資料。篩掉非智能燈後，若某個案件編號只剩 1 筆代表列，
+// 就不再是「撞號」，一併從清單移除。
+export function filterSmartLampCollisions(collisions: CaseExportRow[]): CaseExportRow[] {
+  const smartOnly = collisions.filter((r) => isSmartLampId(r.lampId));
+  const countByCase = new Map<string, number>();
+  for (const row of smartOnly) countByCase.set(row.caseNo, (countByCase.get(row.caseNo) ?? 0) + 1);
+  return smartOnly.filter((row) => (countByCase.get(row.caseNo) ?? 0) > 1);
+}
+
 function toCaseMasterRow(row: CaseExportRow, isClosed: boolean): CaseMasterRow {
   return {
     caseNo: row.caseNo,

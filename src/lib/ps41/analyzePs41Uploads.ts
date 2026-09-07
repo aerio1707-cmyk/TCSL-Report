@@ -1,3 +1,4 @@
+import { filterSmartLampCollisions } from "../caseFiles/buildCaseMaster";
 import { dedupeRows } from "../caseFiles/dedupe";
 import { identifyFile } from "../caseFiles/identifyFile";
 import { readCaseExportFile } from "../caseFiles/parseCaseExport";
@@ -82,8 +83,8 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
     infoOrderRows: infoOrderDedup.rows.length,
     lampMasterRows: lampMasterRows.length,
     unrecognizedFiles,
-    repairCollisions: repairDedup.collisions,
-    reportCollisions: reportDedup.collisions,
+    repairCollisions: filterSmartLampCollisions(repairDedup.collisions),
+    reportCollisions: filterSmartLampCollisions(reportDedup.collisions),
     nonSmartLampRepairExcluded: allCaseRowsResult.nonSmartLampRepairExcluded,
     nonSmartLampReportExcluded: allCaseRowsResult.nonSmartLampReportExcluded,
   };

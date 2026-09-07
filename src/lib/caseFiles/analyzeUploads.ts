@@ -1,4 +1,4 @@
-import { buildCaseMaster, type CaseMasterResult } from "./buildCaseMaster";
+import { buildCaseMaster, filterSmartLampCollisions, type CaseMasterResult } from "./buildCaseMaster";
 import { buildDispatchRows, type DispatchResult } from "./buildDispatchRows";
 import { dedupeRows } from "./dedupe";
 import { identifyFile } from "./identifyFile";
@@ -52,6 +52,7 @@ export async function analyzeUploads(files: File[]): Promise<UploadAnalysisResul
         "caseNo"
       )
     : null;
+  if (repairExport) repairExport.collisions = filterSmartLampCollisions(repairExport.collisions);
 
   const reportExport = reportExportFiles.length
     ? await buildAnalysis(
@@ -60,6 +61,7 @@ export async function analyzeUploads(files: File[]): Promise<UploadAnalysisResul
         "caseNo"
       )
     : null;
+  if (reportExport) reportExport.collisions = filterSmartLampCollisions(reportExport.collisions);
 
   let lampMaster: UploadAnalysisResult["lampMaster"] = null;
   if (lampMasterFiles.length) {
