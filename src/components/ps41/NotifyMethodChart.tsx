@@ -39,13 +39,11 @@ const COLORS = {
 const BADGE_TEXT = "#ffffff";
 const BADGE_WIDTH = 132;
 const BADGE_HEIGHT = 36;
-// 系統開單徽章在清冊圖表要多顯示一行 Info_Order 對帳輔助數字（重複偵測既有
-// 案件／偵測到但未開單），比其他徽章寬一點、高一點才放得下兩行文字。
-const SYSTEM_BADGE_WIDTH = 158;
-const SYSTEM_BADGE_HEIGHT = 50;
+// 系統開單徽章在清冊圖表要多顯示「(未開單合計)」，比其他徽章寬一點才放得下。
+const SYSTEM_BADGE_WIDTH = 168;
 const BADGE_GAP = 10;
 const BADGE_FONT_SIZE = 15;
-const BADGE_SUB_FONT_SIZE = 10.5;
+const TOOLTIP_SUB_FONT_SIZE = 11;
 const FONT_FAMILY = "Calibri, 'PMingLiU', '新細明體', sans-serif";
 
 function prefersDark(): boolean {
@@ -133,24 +131,25 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
       const systemTotal = weeks.reduce((s, w) => s + w.systemCount, 0);
       const citizenTotal = weeks.reduce((s, w) => s + w.citizenCount, 0);
       const failTotal = weeks.reduce((s, w) => s + w.failCount, 0);
-      // Info_Order 對帳輔助數字：只在清冊圖表顯示（跟 FAIL 只在清冊有意義同一
-      // 個前提），非清冊這兩個欄位固定 0。
-      const duplicateTotal = weeks.reduce((s, w) => s + w.duplicateDetectionCount, 0);
-      const undetectedTotal = weeks.reduce((s, w) => s + w.undetectedNoTicketCount, 0);
-      const reconcileTotal = duplicateTotal + undetectedTotal;
+      // Info_Order 對帳輔助合計：只在清冊圖表顯示（跟 FAIL 只在清冊有意義同一
+      // 個前提），非清冊這三個欄位固定 0。明細（整排路燈不亮/重複偵測/其他）
+      // 放在 tooltip 裡，徽章只顯示合計，維持單行版面。
+      const undetectedTotal = weeks.reduce(
+        (s, w) => s + w.undetectedWholeRowUnlitCount + w.undetectedDisabledCount + w.undetectedOtherCount,
+        0
+      );
 
-      const badges: { label: string; total: number; fill: string; width: number; height: number; subLine?: string }[] = [
+      const badges: { label: string; total: number; fill: string; width: number; suffix?: string }[] = [
         {
           label: "系統開單",
           total: systemTotal,
           fill: c.system,
           width: showFail ? SYSTEM_BADGE_WIDTH : BADGE_WIDTH,
-          height: showFail ? SYSTEM_BADGE_HEIGHT : BADGE_HEIGHT,
-          subLine: showFail ? `重複偵測${duplicateTotal}‧未開單${undetectedTotal}` : undefined,
+          suffix: showFail ? ` (${undetectedTotal})` : undefined,
         },
-        { label: "民眾通報", total: citizenTotal, fill: c.citizen, width: BADGE_WIDTH, height: BADGE_HEIGHT },
+        { label: "民眾通報", total: citizenTotal, fill: c.citizen, width: BADGE_WIDTH },
       ];
-      if (showFail) badges.push({ label: "FAIL", total: failTotal, fill: c.fail, width: BADGE_WIDTH, height: BADGE_HEIGHT });
+      if (showFail) badges.push({ label: "FAIL", total: failTotal, fill: c.fail, width: BADGE_WIDTH });
 
       // 徽章寬度不一致（系統開單在清冊圖表較寬），改成從右邊累加游標排列，
       // 不能再用「固定寬度 × 索引」的等距算法。
@@ -168,15 +167,15 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         children: [
           {
             type: "rect",
-            shape: { x: 0, y: 0, width: b.width, height: b.height, r: b.height / 2 },
+            shape: { x: 0, y: 0, width: b.width, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
             style: { fill: b.fill },
           },
           {
             type: "text",
             x: b.width / 2,
-            y: b.subLine ? b.height / 2 - 9 : b.height / 2,
+            y: BADGE_HEIGHT / 2,
             style: {
-              text: `${b.label} ${b.total}${b.subLine ? ` (${reconcileTotal})` : ""}`,
+              text: `${b.label} ${b.total}${b.suffix ?? ""}`,
               fontWeight: "bold",
               fill: BADGE_TEXT,
               fontSize: BADGE_FONT_SIZE,
@@ -185,26 +184,6 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
               verticalAlign: "middle",
             },
           },
-          // 系統開單徽章（清冊圖表）才有的第二行：Info_Order 對帳輔助數字明細。
-          ...(b.subLine
-            ? [
-                {
-                  type: "text",
-                  x: b.width / 2,
-                  y: b.height / 2 + 11,
-                  style: {
-                    text: b.subLine,
-                    fontWeight: "normal",
-                    fill: BADGE_TEXT,
-                    opacity: 0.88,
-                    fontSize: BADGE_SUB_FONT_SIZE,
-                    fontFamily: FONT_FAMILY,
-                    align: "center",
-                    verticalAlign: "middle",
-                  },
-                },
-              ]
-            : []),
         ],
       }));
 
@@ -313,7 +292,20 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
             const week = weeks[idx];
             if (!week) return "";
             const dateRange = formatWeekRangeAsDates(week.weekKey, week.weekKey);
-            const lines = params.map((p) => `${p.marker ?? ""}${p.seriesName}：${p.value}`).join("<br/>");
+            const undetectedTotal = week.undetectedWholeRowUnlitCount + week.undetectedDisabledCount + week.undetectedOtherCount;
+            const lines = params
+              .map((p) => {
+                const main = `${p.marker ?? ""}${p.seriesName}：${p.value}`;
+                // 系統開單這行（僅清冊圖表）附上 Info_Order 對帳明細：未開單合計
+                // 拆成整排路燈不亮／重複偵測（此路燈已停用）／其他三個原因。
+                if (!showFail || p.seriesName !== "系統開單") return main;
+                const sub =
+                  `<span style="margin-left:16px;font-size:${TOOLTIP_SUB_FONT_SIZE}px;opacity:0.7">` +
+                  `↳ 未開單(${undetectedTotal})：整排路燈不亮${week.undetectedWholeRowUnlitCount}` +
+                  `‧重複偵測${week.undetectedDisabledCount}‧其他${week.undetectedOtherCount}</span>`;
+                return `${main}<br/>${sub}`;
+              })
+              .join("<br/>");
             return `${week.weekLabel}　${dateRange}<br/>${lines}`;
           },
         },

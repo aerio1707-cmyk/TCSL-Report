@@ -20,8 +20,9 @@ function newBucket(weekKey: string, weekYear: number, weekLabel: string): Mutabl
     systemCount: 0,
     citizenCount: 0,
     failCount: 0,
-    duplicateDetectionCount: 0,
-    undetectedNoTicketCount: 0,
+    undetectedWholeRowUnlitCount: 0,
+    undetectedDisabledCount: 0,
+    undetectedOtherCount: 0,
     channels: emptyChannelRecord(),
   };
 }
@@ -78,11 +79,12 @@ export function buildWeeklyStats(
 
   const classifiedInfoOrder = classifyInfoOrderRows(infoOrderRows, lampSet, weekMap);
   for (const row of classifiedInfoOrder) {
-    if (!row.weekKey || !row.ticketStatus) continue;
+    if (!row.weekKey || !row.status || row.status === "ticketed") continue;
     const bucket = listedMap.get(row.weekKey); // 對帳輔助數字只會出現在清冊
     if (!bucket) continue;
-    if (row.ticketStatus === "duplicate") bucket.duplicateDetectionCount++;
-    else if (row.ticketStatus === "undetected") bucket.undetectedNoTicketCount++;
+    if (row.status === "wholeRowUnlit") bucket.undetectedWholeRowUnlitCount++;
+    else if (row.status === "disabled") bucket.undetectedDisabledCount++;
+    else bucket.undetectedOtherCount++;
   }
 
   const sortByWeek = (a: MutableBucket, b: MutableBucket) => a.weekKey.localeCompare(b.weekKey);

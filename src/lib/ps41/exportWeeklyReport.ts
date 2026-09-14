@@ -14,8 +14,9 @@ export function exportWeeklyReportWorkbook(stats: WeeklyStatsResult, rangeLabel:
     "系統開單",
     "民眾通報",
     "FAIL",
-    "重複偵測既有案件",
-    "偵測未開單",
+    "未開單-整排路燈不亮",
+    "未開單-重複偵測(此路燈已停用)",
+    "未開單-其他",
     ...LISTED_CHANNEL_HEADERS,
   ];
   const unlistedHeader = ["年度", "月/週", "系統開單", "民眾通報", ...UNLISTED_CHANNEL_HEADERS];
@@ -39,8 +40,9 @@ export function exportWeeklyReportWorkbook(stats: WeeklyStatsResult, rangeLabel:
           l.systemCount,
           l.citizenCount,
           l.failCount,
-          l.duplicateDetectionCount,
-          l.undetectedNoTicketCount,
+          l.undetectedWholeRowUnlitCount,
+          l.undetectedDisabledCount,
+          l.undetectedOtherCount,
           ...LISTED_CHANNEL_HEADERS.map((c) => l.channels[c]),
         ]
       : Array(listedHeader.length).fill("");
