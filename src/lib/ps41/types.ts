@@ -67,6 +67,13 @@ export interface WeeklyChannelBreakdown {
   systemCount: number; // 系統開單 = 自主API + 承商自主通報
   citizenCount: number; // 民眾通報 = 其餘 6 類
   failCount: number; // 僅清冊才有意義，非清冊固定 0
+  // 以下兩項是 Info_Order.csv 跟「系統開單」的對帳輔助數字，僅清冊才有意義
+  // （InfoOrder 跨表比對需要控制器編號，跟 FAIL 只在清冊才有意義同一個前提），
+  // 非清冊固定 0。三者相加＝該週 Info_Order 自動偵測總筆數（不含手動G類）：
+  // systemCount(已成案) + duplicateDetectionCount(重複偵測既有案件) +
+  // undetectedNoTicketCount(偵測到但未開單) = Info_Order 該週總筆數。
+  duplicateDetectionCount: number;
+  undetectedNoTicketCount: number;
   channels: Record<ChannelLabel, number>;
 }
 

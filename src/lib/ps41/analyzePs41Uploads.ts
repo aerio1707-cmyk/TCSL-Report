@@ -27,6 +27,10 @@ export interface Ps41AnalysisResult {
   reportCollisions: CaseExportRow[];
   nonSmartLampRepairExcluded: number;
   nonSmartLampReportExcluded: number;
+  // 供 buildWeeklyStats 計算「系統開單」對帳輔助數字（重複偵測既有案件／
+  // 偵測到但未開單）用，見 infoOrderReconcile.ts。
+  infoOrderRowsData: InfoOrderRow[];
+  lampSet: Set<string>;
 }
 
 // 跟既有「案件主檔」頁籤共用同一套檔案辨識/解析/去重模組，合併時同樣先篩掉
@@ -87,5 +91,7 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
     reportCollisions: filterSmartLampCollisions(reportDedup.collisions),
     nonSmartLampRepairExcluded: allCaseRowsResult.nonSmartLampRepairExcluded,
     nonSmartLampReportExcluded: allCaseRowsResult.nonSmartLampReportExcluded,
+    infoOrderRowsData: infoOrderDedup.rows,
+    lampSet,
   };
 }

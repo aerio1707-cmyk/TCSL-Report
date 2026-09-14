@@ -1,3 +1,5 @@
+import type { InfoOrderRow } from "../caseFiles/types";
+import { classifyInfoOrderRows } from "./infoOrderReconcile";
 import type { AnalysisCandidateRow, ChannelLabel, ClassifiedCaseRow, WeeklyChannelBreakdown, WeeklyStatsResult } from "./types";
 import { generateWeekRange, parseDateTime } from "./weekBucket";
 import { CHANNEL_LABELS } from "./types";
@@ -11,7 +13,17 @@ function emptyChannelRecord(): Record<ChannelLabel, number> {
 interface MutableBucket extends WeeklyChannelBreakdown {}
 
 function newBucket(weekKey: string, weekYear: number, weekLabel: string): MutableBucket {
-  return { weekKey, weekYear, weekLabel, systemCount: 0, citizenCount: 0, failCount: 0, channels: emptyChannelRecord() };
+  return {
+    weekKey,
+    weekYear,
+    weekLabel,
+    systemCount: 0,
+    citizenCount: 0,
+    failCount: 0,
+    duplicateDetectionCount: 0,
+    undetectedNoTicketCount: 0,
+    channels: emptyChannelRecord(),
+  };
 }
 
 // 週次範圍：資料裡「立案日期」有值的全部案件（不受清冊/非清冊分類影響），
@@ -31,9 +43,12 @@ export function fullWeekRange(rows: ClassifiedCaseRow[]): { weekKey: string; wee
 
 export function buildWeeklyStats(
   classifiedRows: ClassifiedCaseRow[],
-  candidates: AnalysisCandidateRow[]
+  candidates: AnalysisCandidateRow[],
+  infoOrderRows: InfoOrderRow[] = [],
+  lampSet: Set<string> = new Set()
 ): WeeklyStatsResult {
   const weeks = fullWeekRange(classifiedRows);
+  const weekMap = new Map(weeks.map((w) => [w.weekKey, w]));
   const listedMap = new Map<string, MutableBucket>();
   const unlistedMap = new Map<string, MutableBucket>();
   for (const w of weeks) {
@@ -59,6 +74,15 @@ export function buildWeeklyStats(
     if (!c.weekKey) continue;
     const bucket = listedMap.get(c.weekKey); // FAIL 只會出現在清冊
     if (bucket) bucket.failCount++;
+  }
+
+  const classifiedInfoOrder = classifyInfoOrderRows(infoOrderRows, lampSet, weekMap);
+  for (const row of classifiedInfoOrder) {
+    if (!row.weekKey || !row.ticketStatus) continue;
+    const bucket = listedMap.get(row.weekKey); // 對帳輔助數字只會出現在清冊
+    if (!bucket) continue;
+    if (row.ticketStatus === "duplicate") bucket.duplicateDetectionCount++;
+    else if (row.ticketStatus === "undetected") bucket.undetectedNoTicketCount++;
   }
 
   const sortByWeek = (a: MutableBucket, b: MutableBucket) => a.weekKey.localeCompare(b.weekKey);

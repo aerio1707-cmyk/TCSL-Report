@@ -39,8 +39,13 @@ const COLORS = {
 const BADGE_TEXT = "#ffffff";
 const BADGE_WIDTH = 132;
 const BADGE_HEIGHT = 36;
+// 系統開單徽章在清冊圖表要多顯示一行 Info_Order 對帳輔助數字（重複偵測既有
+// 案件／偵測到但未開單），比其他徽章寬一點、高一點才放得下兩行文字。
+const SYSTEM_BADGE_WIDTH = 158;
+const SYSTEM_BADGE_HEIGHT = 50;
 const BADGE_GAP = 10;
 const BADGE_FONT_SIZE = 15;
+const BADGE_SUB_FONT_SIZE = 10.5;
 const FONT_FAMILY = "Calibri, 'PMingLiU', '新細明體', sans-serif";
 
 function prefersDark(): boolean {
@@ -128,30 +133,50 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
       const systemTotal = weeks.reduce((s, w) => s + w.systemCount, 0);
       const citizenTotal = weeks.reduce((s, w) => s + w.citizenCount, 0);
       const failTotal = weeks.reduce((s, w) => s + w.failCount, 0);
+      // Info_Order 對帳輔助數字：只在清冊圖表顯示（跟 FAIL 只在清冊有意義同一
+      // 個前提），非清冊這兩個欄位固定 0。
+      const duplicateTotal = weeks.reduce((s, w) => s + w.duplicateDetectionCount, 0);
+      const undetectedTotal = weeks.reduce((s, w) => s + w.undetectedNoTicketCount, 0);
+      const reconcileTotal = duplicateTotal + undetectedTotal;
 
-      const badges: { label: string; total: number; fill: string }[] = [
-        { label: "系統開單", total: systemTotal, fill: c.system },
-        { label: "民眾通報", total: citizenTotal, fill: c.citizen },
+      const badges: { label: string; total: number; fill: string; width: number; height: number; subLine?: string }[] = [
+        {
+          label: "系統開單",
+          total: systemTotal,
+          fill: c.system,
+          width: showFail ? SYSTEM_BADGE_WIDTH : BADGE_WIDTH,
+          height: showFail ? SYSTEM_BADGE_HEIGHT : BADGE_HEIGHT,
+          subLine: showFail ? `重複偵測${duplicateTotal}‧未開單${undetectedTotal}` : undefined,
+        },
+        { label: "民眾通報", total: citizenTotal, fill: c.citizen, width: BADGE_WIDTH, height: BADGE_HEIGHT },
       ];
-      if (showFail) badges.push({ label: "FAIL", total: failTotal, fill: c.fail });
+      if (showFail) badges.push({ label: "FAIL", total: failTotal, fill: c.fail, width: BADGE_WIDTH, height: BADGE_HEIGHT });
+
+      // 徽章寬度不一致（系統開單在清冊圖表較寬），改成從右邊累加游標排列，
+      // 不能再用「固定寬度 × 索引」的等距算法。
+      const badgeRight: number[] = [];
+      let cursor = 24;
+      for (let i = badges.length - 1; i >= 0; i--) {
+        badgeRight[i] = cursor;
+        cursor += badges[i].width + BADGE_GAP;
+      }
 
       const graphic: echarts.EChartsOption["graphic"] = badges.map((b, i) => ({
         type: "group",
-        right: 24 + (badges.length - 1 - i) * (BADGE_WIDTH + BADGE_GAP),
+        right: badgeRight[i],
         top: 54, // 標題+副標題在上方獨立一列，徽章另起一列避免三個徽章時跟標題文字重疊
-
         children: [
           {
             type: "rect",
-            shape: { x: 0, y: 0, width: BADGE_WIDTH, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
+            shape: { x: 0, y: 0, width: b.width, height: b.height, r: b.height / 2 },
             style: { fill: b.fill },
           },
           {
             type: "text",
-            x: BADGE_WIDTH / 2,
-            y: BADGE_HEIGHT / 2,
+            x: b.width / 2,
+            y: b.subLine ? b.height / 2 - 9 : b.height / 2,
             style: {
-              text: `${b.label} ${b.total}`,
+              text: `${b.label} ${b.total}${b.subLine ? ` (${reconcileTotal})` : ""}`,
               fontWeight: "bold",
               fill: BADGE_TEXT,
               fontSize: BADGE_FONT_SIZE,
@@ -160,6 +185,26 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
               verticalAlign: "middle",
             },
           },
+          // 系統開單徽章（清冊圖表）才有的第二行：Info_Order 對帳輔助數字明細。
+          ...(b.subLine
+            ? [
+                {
+                  type: "text",
+                  x: b.width / 2,
+                  y: b.height / 2 + 11,
+                  style: {
+                    text: b.subLine,
+                    fontWeight: "normal",
+                    fill: BADGE_TEXT,
+                    opacity: 0.88,
+                    fontSize: BADGE_SUB_FONT_SIZE,
+                    fontFamily: FONT_FAMILY,
+                    align: "center",
+                    verticalAlign: "middle",
+                  },
+                },
+              ]
+            : []),
         ],
       }));
 

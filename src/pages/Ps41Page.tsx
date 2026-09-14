@@ -26,7 +26,7 @@ export function Ps41Page() {
 
   const weeklyStatsFull = useMemo(() => {
     if (!result) return null;
-    return buildWeeklyStats(result.classifiedRows, candidates);
+    return buildWeeklyStats(result.classifiedRows, candidates, result.infoOrderRowsData, result.lampSet);
   }, [result, candidates]);
 
   const availableWeeks = useMemo(() => {
