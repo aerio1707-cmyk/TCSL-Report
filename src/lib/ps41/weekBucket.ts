@@ -13,11 +13,28 @@
 // 日期字串格式固定是 "yyyy-mm-dd hh:mm:ss"（InfoOrder creation_time 原文、
 // CaseExportRow filedDate 皆同，SheetJS raw:false 讀 xlsx 原生日期儲存格也是這個格式）。
 
+// 逐欄位比對，不要求年/月/日/時/分/秒補零：SheetJS（raw:false）把日期時間儲存格
+// 轉成文字時，時/分/秒若是個位數會省略前導零（例如「2026-09-13 1:10:15」），
+// 直接丟給 `new Date(iso)` 會因為不符合 ISO 8601 兩位數時間格式變成 Invalid Date，
+// 導致這類案件的週次判定整個變 null、被 buildWeeklyStats 悄悄排除在統計外
+// （已用真實資料驗證：全部案件裡有 18.8% 的立案時間是個位數時，多半是系統
+// 自動派工固定時段觸發，影響尤其大）。改成手動組出 Date 物件，不依賴字串格式。
+const DATE_TIME_PATTERN = /^(\d{1,4})-(\d{1,2})-(\d{1,2})(?:[ T](\d{1,2}):(\d{1,2}):(\d{1,2}))?$/;
+
 export function parseDateTime(value: string): Date | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const iso = trimmed.replace(" ", "T");
-  const d = new Date(iso);
+  const match = trimmed.match(DATE_TIME_PATTERN);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  const d = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    hour !== undefined ? Number(hour) : 0,
+    minute !== undefined ? Number(minute) : 0,
+    second !== undefined ? Number(second) : 0
+  );
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
