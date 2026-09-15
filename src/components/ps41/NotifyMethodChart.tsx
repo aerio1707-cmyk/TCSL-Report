@@ -37,12 +37,14 @@ const COLORS = {
 };
 
 const BADGE_TEXT = "#ffffff";
-const BADGE_WIDTH = 132;
 const BADGE_HEIGHT = 36;
-// 系統開單徽章在清冊圖表要多顯示「(未開單合計)」，比其他徽章寬一點才放得下。
-const SYSTEM_BADGE_WIDTH = 168;
 const BADGE_GAP = 10;
 const BADGE_FONT_SIZE = 15;
+const BADGE_FONT_WEIGHT = "bold";
+// 徽章寬度改用文字實際量測寬度＋左右邊距動態計算，不再用固定寬度常數——
+// 邊距是文字左右兩側各自的留白。數值比照「維修案件統計」頁籤（TicketCountChart）
+// 已確認過的版面。
+const BADGE_PADDING_X = 16;
 const TOOLTIP_SUB_FONT_SIZE = 11;
 const FONT_FAMILY = "Calibri, 'PMingLiU', '新細明體', sans-serif";
 
@@ -55,6 +57,19 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// 用共用的離屏 canvas 量測文字實際像素寬度，讓徽章寬度可以跟著文字內容
+// （例如括號內的對帳輔助數字長度不固定）動態縮放，邊框跟文字之間不會有
+// 多餘留白，也不會因為文字太長被裁切。
+let measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, fontSize: number, fontWeight: string, fontFamily: string): number {
+  if (typeof document === "undefined") return text.length * fontSize;
+  if (!measureCanvas) measureCanvas = document.createElement("canvas");
+  const ctx = measureCanvas.getContext("2d");
+  if (!ctx) return text.length * fontSize;
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+  return ctx.measureText(text).width;
 }
 
 // 數值標籤加上圓角外框＋對應類別的淡色底色（比照參考截圖），底色用該類別
@@ -139,17 +154,24 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         0
       );
 
-      const badges: { label: string; total: number; fill: string; width: number; suffix?: string }[] = [
+      const badgeDefs: { label: string; total: number; fill: string; suffix?: string }[] = [
         {
           label: "系統開單",
           total: systemTotal,
           fill: c.system,
-          width: showFail ? SYSTEM_BADGE_WIDTH : BADGE_WIDTH,
-          suffix: showFail ? ` (${undetectedTotal})` : undefined,
+          suffix: showFail ? `(N:${undetectedTotal})` : undefined,
         },
-        { label: "民眾通報", total: citizenTotal, fill: c.citizen, width: BADGE_WIDTH },
+        { label: "民眾通報", total: citizenTotal, fill: c.citizen },
       ];
-      if (showFail) badges.push({ label: "FAIL", total: failTotal, fill: c.fail, width: BADGE_WIDTH });
+      if (showFail) badgeDefs.push({ label: "FAIL", total: failTotal, fill: c.fail });
+
+      const badges = badgeDefs.map((b) => {
+        const text = `${b.label} ${b.total}${b.suffix ?? ""}`;
+        const textWidth = measureTextWidth(text, BADGE_FONT_SIZE, BADGE_FONT_WEIGHT, FONT_FAMILY);
+        // 跟 TicketCountChart 一樣用 BADGE_HEIGHT 當寬度下限，避免文字很短時
+        // 寬度小於高度、圓角膠囊（r = height/2）反而變形。
+        return { ...b, text, width: Math.max(BADGE_HEIGHT, textWidth + BADGE_PADDING_X * 2) };
+      });
 
       // 徽章寬度不一致（系統開單在清冊圖表較寬），改成從右邊累加游標排列，
       // 不能再用「固定寬度 × 索引」的等距算法。
@@ -175,8 +197,8 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
             x: b.width / 2,
             y: BADGE_HEIGHT / 2,
             style: {
-              text: `${b.label} ${b.total}${b.suffix ?? ""}`,
-              fontWeight: "bold",
+              text: b.text,
+              fontWeight: BADGE_FONT_WEIGHT,
               fill: BADGE_TEXT,
               fontSize: BADGE_FONT_SIZE,
               fontFamily: FONT_FAMILY,
