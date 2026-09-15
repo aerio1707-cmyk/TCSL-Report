@@ -28,9 +28,8 @@ const CHART_COLORS = {
   },
 };
 
-// 徽章固定用深藍底＋白字（不隨主題切換），跟折線同一色系但更深、對比更夠，
-// 不再是原本「淡黃底＋深咖啡邊框」那種互不相干的配色。
-const BADGE_FILL = "#1c5cab";
+// 徽章固定用橘底＋白字（不隨主題切換），測試效果用；原本是深藍底。
+const BADGE_FILL = "#c9670b";
 const BADGE_TEXT = "#ffffff";
 const BADGE_WIDTH = 128;
 const BADGE_HEIGHT = 40;
@@ -52,7 +51,8 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
     if (!el) return;
 
     const chart = echarts.init(el);
-    const total = buckets.reduce((sum, b) => sum + b.total, 0);
+    const ticketedTotal = buckets.reduce((sum, b) => sum + b.ticketedCount, 0);
+    const undetectedTotal = buckets.reduce((sum, b) => sum + b.undetectedCount, 0);
 
     const render = () => {
       const c = prefersDark() ? CHART_COLORS.dark : CHART_COLORS.light;
@@ -87,7 +87,7 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
                 x: BADGE_WIDTH / 2,
                 y: BADGE_HEIGHT / 2,
                 style: {
-                  text: `總計 ${total}`,
+                  text: `${ticketedTotal} (${undetectedTotal})`,
                   fontWeight: "bold",
                   fill: BADGE_TEXT,
                   fontSize: BADGE_FONT_SIZE,
@@ -116,8 +116,20 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
         series: [
           {
             type: "line",
-            data: buckets.map((b) => b.total),
-            label: { show: true, position: "top", fontWeight: 600, color: c.primaryInk, fontFamily: FONT_FAMILY },
+            data: buckets.map((b) => b.ticketedCount),
+            label: {
+              show: true,
+              position: "top",
+              fontWeight: 600,
+              color: c.primaryInk,
+              fontFamily: FONT_FAMILY,
+              // 實際開單數 (僅偵測未開單數)，例如「5 (9)」；兩數相加＝當天總偵測數。
+              formatter: (params) => {
+                const bucket = buckets[params.dataIndex ?? 0];
+                if (!bucket) return "";
+                return `${bucket.ticketedCount} (${bucket.undetectedCount})`;
+              },
+            },
             lineStyle: { color: c.line, width: 2 },
             itemStyle: { color: c.line, borderColor: "transparent" },
             symbol: "circle",

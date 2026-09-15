@@ -32,6 +32,8 @@ export interface PeriodBucket {
   key: string;
   label: string;
   total: number;
+  ticketedCount: number; // notify_result 抓得到工單編號＝實際開單（沿用 DispatchRow.ticketNo）
+  undetectedCount: number; // total - ticketedCount，僅偵測未開單
   categories: CategoryCount[];
 }
 
@@ -96,6 +98,8 @@ function bucketKeyAndLabel(d: Date, granularity: Granularity): { key: string; la
 interface MutableBucket {
   label: string;
   total: number;
+  ticketedCount: number;
+  undetectedCount: number;
   byCategory: Map<string, number>;
   byDistrict: Map<string, number>;
 }
@@ -113,10 +117,15 @@ export function buildTicketCountSeries(rows: DispatchRow[], options: BuildSeries
     const { key, label } = bucketKeyAndLabel(date, options.granularity);
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = { label, total: 0, byCategory: new Map(), byDistrict: new Map() };
+      bucket = { label, total: 0, ticketedCount: 0, undetectedCount: 0, byCategory: new Map(), byDistrict: new Map() };
       buckets.set(key, bucket);
     }
     bucket.total++;
+    if (row.ticketNo !== "") {
+      bucket.ticketedCount++;
+    } else {
+      bucket.undetectedCount++;
+    }
 
     const category = TYPE_CATEGORY[row.type] ?? "其他";
     bucket.byCategory.set(category, (bucket.byCategory.get(category) ?? 0) + 1);
@@ -133,6 +142,8 @@ export function buildTicketCountSeries(rows: DispatchRow[], options: BuildSeries
       key,
       label: b.label,
       total: b.total,
+      ticketedCount: b.ticketedCount,
+      undetectedCount: b.undetectedCount,
       categories: [...b.byCategory.entries()]
         .sort(([, c1], [, c2]) => c2 - c1)
         .map(([category, count]) => ({
