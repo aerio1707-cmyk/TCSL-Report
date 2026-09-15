@@ -31,11 +31,17 @@ const CHART_COLORS = {
 // 徽章固定用橘底＋白字（不隨主題切換），測試效果用；原本是深藍底。
 const BADGE_FILL = "#c9670b";
 const BADGE_TEXT = "#ffffff";
-const BADGE_HEIGHT = 40;
+const BADGE_SUB_TEXT = "rgba(255, 255, 255, 0.85)";
 const BADGE_FONT_SIZE = 18;
-// 徽章寬度改成依文字實際量測寬度動態計算，左右各留這麼多邊距，
-// 不再用固定寬度（文字變長時會被裁切、變短時邊框會留很多空白）。
+const BADGE_ANNOTATION_FONT_SIZE = 11;
 const BADGE_PADDING_X = 16;
+const BADGE_PADDING_Y = 8;
+const BADGE_LINE_GAP = 4;
+// 徽章第二行是小字註記，說明第一行數字的意義（例如「實際開單數 (僅偵測未開單)」），
+// 高度改成依兩行文字堆疊算出，不再是單行固定值。
+const BADGE_HEIGHT = BADGE_PADDING_Y * 2 + BADGE_FONT_SIZE + BADGE_LINE_GAP + BADGE_ANNOTATION_FONT_SIZE;
+const BADGE_MAIN_TEXT_Y = BADGE_PADDING_Y + BADGE_FONT_SIZE / 2;
+const BADGE_ANNOTATION_TEXT_Y = BADGE_PADDING_Y + BADGE_FONT_SIZE + BADGE_LINE_GAP + BADGE_ANNOTATION_FONT_SIZE / 2;
 
 // 中文用新細明體、英數字用 Calibri：瀏覽器依字元找不到 Calibri 的字形（中文）時，
 // 會自動往後找到新細明體，兩種字元各自吃到指定字體，不需要另外拆字串分開畫。
@@ -45,11 +51,11 @@ function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-function measureBadgeTextWidth(text: string): number {
-  if (typeof document === "undefined") return text.length * BADGE_FONT_SIZE * 0.6;
+function measureTextWidth(text: string, fontSize: number, fontWeight: string): number {
+  if (typeof document === "undefined") return text.length * fontSize * 0.6;
   const ctx = document.createElement("canvas").getContext("2d");
-  if (!ctx) return text.length * BADGE_FONT_SIZE * 0.6;
-  ctx.font = `bold ${BADGE_FONT_SIZE}px ${FONT_FAMILY}`;
+  if (!ctx) return text.length * fontSize * 0.6;
+  ctx.font = `${fontWeight} ${fontSize}px ${FONT_FAMILY}`;
   return ctx.measureText(text).width;
 }
 
@@ -63,8 +69,11 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
     const chart = echarts.init(el);
     const ticketedTotal = buckets.reduce((sum, b) => sum + b.ticketedCount, 0);
     const undetectedTotal = buckets.reduce((sum, b) => sum + b.undetectedCount, 0);
-    const badgeText = `${ticketedTotal} (N : ${undetectedTotal})`;
-    const badgeWidth = Math.max(BADGE_HEIGHT, measureBadgeTextWidth(badgeText) + BADGE_PADDING_X * 2);
+    const badgeMainText = `${ticketedTotal} (N : ${undetectedTotal})`;
+    const badgeAnnotationText = "實際開單數 ( 僅偵測未開單 )";
+    const mainTextWidth = measureTextWidth(badgeMainText, BADGE_FONT_SIZE, "bold");
+    const annotationTextWidth = measureTextWidth(badgeAnnotationText, BADGE_ANNOTATION_FONT_SIZE, "normal");
+    const badgeWidth = Math.max(mainTextWidth, annotationTextWidth) + BADGE_PADDING_X * 2;
 
     const render = () => {
       const c = prefersDark() ? CHART_COLORS.dark : CHART_COLORS.light;
@@ -97,12 +106,25 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
               {
                 type: "text",
                 x: badgeWidth / 2,
-                y: BADGE_HEIGHT / 2,
+                y: BADGE_MAIN_TEXT_Y,
                 style: {
-                  text: badgeText,
+                  text: badgeMainText,
                   fontWeight: "bold",
                   fill: BADGE_TEXT,
                   fontSize: BADGE_FONT_SIZE,
+                  fontFamily: FONT_FAMILY,
+                  align: "center",
+                  verticalAlign: "middle",
+                },
+              },
+              {
+                type: "text",
+                x: badgeWidth / 2,
+                y: BADGE_ANNOTATION_TEXT_Y,
+                style: {
+                  text: badgeAnnotationText,
+                  fill: BADGE_SUB_TEXT,
+                  fontSize: BADGE_ANNOTATION_FONT_SIZE,
                   fontFamily: FONT_FAMILY,
                   align: "center",
                   verticalAlign: "middle",
