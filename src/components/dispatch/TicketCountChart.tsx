@@ -31,9 +31,11 @@ const CHART_COLORS = {
 // 徽章固定用橘底＋白字（不隨主題切換），測試效果用；原本是深藍底。
 const BADGE_FILL = "#c9670b";
 const BADGE_TEXT = "#ffffff";
-const BADGE_WIDTH = 128;
 const BADGE_HEIGHT = 40;
 const BADGE_FONT_SIZE = 18;
+// 徽章寬度改成依文字實際量測寬度動態計算，左右各留這麼多邊距，
+// 不再用固定寬度（文字變長時會被裁切、變短時邊框會留很多空白）。
+const BADGE_PADDING_X = 16;
 
 // 中文用新細明體、英數字用 Calibri：瀏覽器依字元找不到 Calibri 的字形（中文）時，
 // 會自動往後找到新細明體，兩種字元各自吃到指定字體，不需要另外拆字串分開畫。
@@ -41,6 +43,14 @@ const FONT_FAMILY = "Calibri, 'PMingLiU', '新細明體', sans-serif";
 
 function prefersDark(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function measureBadgeTextWidth(text: string): number {
+  if (typeof document === "undefined") return text.length * BADGE_FONT_SIZE * 0.6;
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return text.length * BADGE_FONT_SIZE * 0.6;
+  ctx.font = `bold ${BADGE_FONT_SIZE}px ${FONT_FAMILY}`;
+  return ctx.measureText(text).width;
 }
 
 export function TicketCountChart({ buckets, rangeLabel }: Props) {
@@ -53,6 +63,8 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
     const chart = echarts.init(el);
     const ticketedTotal = buckets.reduce((sum, b) => sum + b.ticketedCount, 0);
     const undetectedTotal = buckets.reduce((sum, b) => sum + b.undetectedCount, 0);
+    const badgeText = `${ticketedTotal} (N : ${undetectedTotal})`;
+    const badgeWidth = Math.max(BADGE_HEIGHT, measureBadgeTextWidth(badgeText) + BADGE_PADDING_X * 2);
 
     const render = () => {
       const c = prefersDark() ? CHART_COLORS.dark : CHART_COLORS.light;
@@ -79,15 +91,15 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
             children: [
               {
                 type: "rect",
-                shape: { x: 0, y: 0, width: BADGE_WIDTH, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
+                shape: { x: 0, y: 0, width: badgeWidth, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
                 style: { fill: BADGE_FILL },
               },
               {
                 type: "text",
-                x: BADGE_WIDTH / 2,
+                x: badgeWidth / 2,
                 y: BADGE_HEIGHT / 2,
                 style: {
-                  text: `${ticketedTotal} (${undetectedTotal})`,
+                  text: badgeText,
                   fontWeight: "bold",
                   fill: BADGE_TEXT,
                   fontSize: BADGE_FONT_SIZE,
