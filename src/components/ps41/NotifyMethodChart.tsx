@@ -159,7 +159,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           label: "系統開單",
           total: systemTotal,
           fill: c.system,
-          suffix: showFail ? `(N:${undetectedTotal})` : undefined,
+          suffix: showFail ? ` (N:${undetectedTotal})` : undefined,
         },
         { label: "民眾通報", total: citizenTotal, fill: c.citizen },
       ];
