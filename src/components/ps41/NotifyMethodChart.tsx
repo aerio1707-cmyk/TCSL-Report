@@ -59,6 +59,12 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// 未開單對帳數字的統一格式："( N : 數字 )"，括號內外都留空格，徽章跟 tooltip
+// 共用同一個格式，避免「(N:52)」擠在一起不好讀。
+function formatUndetected(n: number): string {
+  return `( N : ${n} )`;
+}
+
 // 用共用的離屏 canvas 量測文字實際像素寬度，讓徽章寬度可以跟著文字內容
 // （例如括號內的對帳輔助數字長度不固定）動態縮放，邊框跟文字之間不會有
 // 多餘留白，也不會因為文字太長被裁切。
@@ -159,7 +165,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           label: "系統開單",
           total: systemTotal,
           fill: c.system,
-          suffix: showFail ? ` (N:${undetectedTotal})` : undefined,
+          suffix: showFail ? ` ${formatUndetected(undetectedTotal)}` : undefined,
         },
         { label: "民眾通報", total: citizenTotal, fill: c.citizen },
       ];
@@ -317,10 +323,11 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
             const undetectedTotal = week.undetectedWholeRowUnlitCount + week.undetectedDisabledCount + week.undetectedOtherCount;
             const lines = params
               .map((p) => {
-                const main = `${p.marker ?? ""}${p.seriesName}：${p.value}`;
-                // 系統開單這行（僅清冊圖表）附上 Info_Order 對帳明細：未開單合計
-                // 拆成整排路燈不亮／重複偵測（此路燈已停用）／其他三個原因。
-                if (!showFail || p.seriesName !== "系統開單") return main;
+                // 系統開單這行（僅清冊圖表）在數值後面直接附上未開單合計
+                // 「( N : 數字 )」，方便一眼看到對帳缺口，明細另外在下面一行列出。
+                const isSystemLine = showFail && p.seriesName === "系統開單";
+                const main = `${p.marker ?? ""}${p.seriesName}：${p.value}${isSystemLine ? ` ${formatUndetected(undetectedTotal)}` : ""}`;
+                if (!isSystemLine) return main;
                 const sub =
                   `<span style="margin-left:16px;font-size:${TOOLTIP_SUB_FONT_SIZE}px;opacity:0.7">` +
                   `↳ 未開單(${undetectedTotal})：整排路燈不亮${week.undetectedWholeRowUnlitCount}` +
