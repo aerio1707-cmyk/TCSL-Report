@@ -14,6 +14,10 @@ import { formatWeekRangeAsDates } from "../lib/ps41/weekBucket";
 
 type Step = "upload" | "review" | "range" | "output";
 
+function formatVersionDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function Ps41Page() {
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
@@ -26,7 +30,7 @@ export function Ps41Page() {
 
   const weeklyStatsFull = useMemo(() => {
     if (!result) return null;
-    return buildWeeklyStats(result.classifiedRows, candidates, result.infoOrderRowsData, result.lampSet);
+    return buildWeeklyStats(result.classifiedRows, candidates, result.infoOrderRowsData, result.lampListVersions);
   }, [result, candidates]);
 
   const availableWeeks = useMemo(() => {
@@ -101,6 +105,17 @@ export function Ps41Page() {
             <span className="summary-value">
               {result.totalCaseRows}
               <span className="summary-sub">去重排除 {result.duplicateRowsRemoved} 筆</span>
+            </span>
+          </div>
+          <div className="summary-line">
+            <span className="summary-key">智能燈清冊版本</span>
+            <span className="summary-value">
+              {result.lampListVersions.map((v, i) => (
+                <span key={i} style={{ display: "block" }}>
+                  {v.effectiveFrom ? `${formatVersionDate(v.effectiveFrom)} 起` : "預設版本（最早適用）"}：{v.lampSet.size} 筆（{v.sourceFiles.join("、")}）
+                </span>
+              ))}
+              <span className="summary-sub">依檔名裡的 8 碼日期（YYYYMMDD）判斷生效日期，沒有日期段的檔案視為預設版本；請確認檔案數量與生效日期是否符合預期</span>
             </span>
           </div>
           <div className="summary-line">

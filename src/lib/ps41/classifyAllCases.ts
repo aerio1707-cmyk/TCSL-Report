@@ -1,6 +1,8 @@
 import type { CaseExportRow } from "../caseFiles/types";
 import { classifyLampList } from "./classifyLampList";
 import { notifyCategoryOf } from "./channelBucket";
+import type { LampListVersion } from "./lampListVersions";
+import { pickLampSetForDate } from "./lampListVersions";
 import type { ClassifiedCaseRow } from "./types";
 import { generateWeekRange, mondayKeyOf, parseDateTime } from "./weekBucket";
 import type { WeekBucketInfo } from "./weekBucket";
@@ -9,7 +11,9 @@ import type { WeekBucketInfo } from "./weekBucket";
 // 週次標籤一定要先用這批資料的日期 min~max 產生完整連續週次表再查表帶入，
 // 不能對每筆日期各自獨立算——「該月第幾週」的編號需要看過同一批連續週次
 // 才能編對，見 weekBucket.ts 的說明。
-export function classifyAllCases(rows: CaseExportRow[], lampSet: Set<string>): ClassifiedCaseRow[] {
+// 清冊/非清冊判定依「立案日期」挑當時生效的清冊版本（見 lampListVersions.ts），
+// 不是整批資料套同一份清冊——清冊改版當週前後的案件會分別套到新舊兩份名單。
+export function classifyAllCases(rows: CaseExportRow[], lampListVersions: LampListVersion[]): ClassifiedCaseRow[] {
   const filedDates = rows.map((row) => parseDateTime(row.filedDate));
 
   let min: Date | null = null;
@@ -43,7 +47,7 @@ export function classifyAllCases(rows: CaseExportRow[], lampSet: Set<string>): C
       weekKey: week?.weekKey ?? null,
       weekYear: week?.weekYear ?? null,
       weekLabel: week?.weekLabel ?? null,
-      lampListStatus: classifyLampList(row.lampId, row.controllerId, lampSet),
+      lampListStatus: classifyLampList(row.lampId, row.controllerId, pickLampSetForDate(lampListVersions, filedDate)),
       notifyCategory: notifyCategoryOf(row.reportSource),
     };
   });

@@ -1,5 +1,6 @@
 import type { InfoOrderRow } from "../caseFiles/types";
 import { classifyInfoOrderRows } from "./infoOrderReconcile";
+import type { LampListVersion } from "./lampListVersions";
 import type { AnalysisCandidateRow, ChannelLabel, ClassifiedCaseRow, WeeklyChannelBreakdown, WeeklyStatsResult } from "./types";
 import { generateWeekRange, parseDateTime } from "./weekBucket";
 import { CHANNEL_LABELS } from "./types";
@@ -46,7 +47,7 @@ export function buildWeeklyStats(
   classifiedRows: ClassifiedCaseRow[],
   candidates: AnalysisCandidateRow[],
   infoOrderRows: InfoOrderRow[] = [],
-  lampSet: Set<string> = new Set()
+  lampListVersions: LampListVersion[] = []
 ): WeeklyStatsResult {
   const weeks = fullWeekRange(classifiedRows);
   const weekMap = new Map(weeks.map((w) => [w.weekKey, w]));
@@ -77,7 +78,7 @@ export function buildWeeklyStats(
     if (bucket) bucket.failCount++;
   }
 
-  const classifiedInfoOrder = classifyInfoOrderRows(infoOrderRows, lampSet, weekMap);
+  const classifiedInfoOrder = classifyInfoOrderRows(infoOrderRows, lampListVersions, weekMap);
   for (const row of classifiedInfoOrder) {
     if (!row.weekKey || !row.status || row.status === "ticketed") continue;
     const bucket = listedMap.get(row.weekKey); // 對帳輔助數字只會出現在清冊

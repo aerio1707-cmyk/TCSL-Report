@@ -9,6 +9,8 @@ import { buildAllCaseRows } from "./buildAllCaseRows";
 import { buildAnalysisCandidates } from "./buildAnalysisCandidates";
 import { classifyAllCases, countUnclassifiedByBlankController } from "./classifyAllCases";
 import { buildInfoOrderIndex } from "./infoOrderMatch";
+import type { LampListVersion } from "./lampListVersions";
+import { buildLampListVersions } from "./lampListVersions";
 import type { AnalysisCandidateRow, ClassifiedCaseRow } from "./types";
 
 export interface Ps41AnalysisResult {
@@ -30,7 +32,9 @@ export interface Ps41AnalysisResult {
   // 供 buildWeeklyStats 計算「系統開單」對帳輔助數字（重複偵測既有案件／
   // 偵測到但未開單）用，見 infoOrderReconcile.ts。
   infoOrderRowsData: InfoOrderRow[];
-  lampSet: Set<string>;
+  // 智能燈清冊可能有多份、分不同生效日期（見 lampListVersions.ts），依日期
+  // 挑當時生效的版本，不是單一份 lampSet。
+  lampListVersions: LampListVersion[];
 }
 
 // 跟既有「案件主檔」頁籤共用同一套檔案辨識/解析/去重模組，合併時同樣先篩掉
@@ -69,11 +73,14 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
   const repairDedup = dedupeRows<CaseExportRow>(repairExportRaw, "caseNo");
   const reportDedup = dedupeRows<CaseExportRow>(reportExportRaw, "caseNo");
 
-  const lampMasterRows: LampMasterRow[] = (await Promise.all(lampMasterFiles.map(readLampMasterFile))).flat();
-  const lampSet = new Set(lampMasterRows.map((r) => r.lampId).filter((id) => id !== ""));
+  const lampMasterFileRows = await Promise.all(
+    lampMasterFiles.map(async (f) => ({ name: f.name, rows: await readLampMasterFile(f) }))
+  );
+  const lampMasterRows: LampMasterRow[] = lampMasterFileRows.flatMap((f) => f.rows);
+  const lampListVersions = buildLampListVersions(lampMasterFileRows);
 
   const allCaseRowsResult = buildAllCaseRows(repairDedup.rows, reportDedup.rows);
-  const classifiedRows = classifyAllCases(allCaseRowsResult.rows, lampSet);
+  const classifiedRows = classifyAllCases(allCaseRowsResult.rows, lampListVersions);
 
   const infoOrderIndex = buildInfoOrderIndex(infoOrderDedup.rows);
   const candidates = buildAnalysisCandidates(classifiedRows, infoOrderIndex);
@@ -92,6 +99,6 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
     nonSmartLampRepairExcluded: allCaseRowsResult.nonSmartLampRepairExcluded,
     nonSmartLampReportExcluded: allCaseRowsResult.nonSmartLampReportExcluded,
     infoOrderRowsData: infoOrderDedup.rows,
-    lampSet,
+    lampListVersions,
   };
 }

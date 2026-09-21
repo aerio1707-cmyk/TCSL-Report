@@ -56,6 +56,12 @@ export function Ps41UploadPanel({ fileNames, busy, onFilesSelected, onAnalyze }:
             <span className="input-help-rule">智能燈案件中控制器編號空白的部分無法判定，不列入清冊/非清冊統計（畫面會顯示筆數）</span>
           </li>
           <li>
+            <span className="input-help-name">清冊改版</span>
+            <span className="input-help-rule">
+              清冊可上傳多份：檔名含 8 碼日期（例如「智能燈清冊_6115_20260914.xlsx」）視為該日期起生效，沒有日期的檔名視為最早的預設版本；每筆案件依當時日期自動套用當時生效的清冊
+            </span>
+          </li>
+          <li>
             <span className="input-help-name">處理位置</span>
             <span className="input-help-rule">資料完全在瀏覽器端處理，不會上傳到任何伺服器</span>
           </li>
