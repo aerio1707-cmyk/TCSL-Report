@@ -21,6 +21,7 @@ function newBucket(weekKey: string, weekYear: number, weekLabel: string): Mutabl
     systemCount: 0,
     citizenCount: 0,
     failCount: 0,
+    ghostTicketCount: 0,
     undetectedWholeRowUnlitCount: 0,
     undetectedDisabledCount: 0,
     undetectedOtherCount: 0,
@@ -78,12 +79,17 @@ export function buildWeeklyStats(
     if (bucket) bucket.failCount++;
   }
 
-  const classifiedInfoOrder = classifyInfoOrderRows(infoOrderRows, lampListVersions, weekMap);
+  // 幽靈工單判定需要知道「案件匯出檔案裡真的存在哪些案件編號」，用全部
+  // classifiedRows（不篩清冊/系統開單）建立比對集合——Info_Order 抓到的
+  // 工單編號本來就可能對到任何來源/任何清冊狀態的案件。
+  const knownCaseNos = new Set(classifiedRows.map((r) => r.caseNo));
+  const classifiedInfoOrder = classifyInfoOrderRows(infoOrderRows, lampListVersions, weekMap, knownCaseNos);
   for (const row of classifiedInfoOrder) {
     if (!row.weekKey || !row.status || row.status === "ticketed") continue;
     const bucket = listedMap.get(row.weekKey); // 對帳輔助數字只會出現在清冊
     if (!bucket) continue;
-    if (row.status === "wholeRowUnlit") bucket.undetectedWholeRowUnlitCount++;
+    if (row.status === "ghost") bucket.ghostTicketCount++;
+    else if (row.status === "wholeRowUnlit") bucket.undetectedWholeRowUnlitCount++;
     else if (row.status === "disabled") bucket.undetectedDisabledCount++;
     else bucket.undetectedOtherCount++;
   }

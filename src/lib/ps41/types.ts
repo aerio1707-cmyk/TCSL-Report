@@ -64,16 +64,19 @@ export interface WeeklyChannelBreakdown {
   weekKey: string;
   weekYear: number;
   weekLabel: string;
-  systemCount: number; // 系統開單 = 自主API + 承商自主通報
+  systemCount: number; // 系統開單 = 自主API + 承商自主通報，且案件編號在案件匯出檔案裡查得到
   citizenCount: number; // 民眾通報 = 其餘 6 類
   failCount: number; // 僅清冊才有意義，非清冊固定 0
-  // 以下三項是 Info_Order.csv 跟「系統開單」的對帳輔助數字，僅清冊才有意義
+  // 以下四項是 Info_Order.csv 跟「系統開單」的對帳輔助數字，僅清冊才有意義
   // （InfoOrder 跨表比對需要控制器編號，跟 FAIL 只在清冊才有意義同一個前提），
-  // 非清冊固定 0。依 notify_result 內容拆解「未開單」的三種原因，四者相加＝
-  // 該週 Info_Order 自動偵測總筆數（不含手動G類）：
-  // systemCount(已成案) + undetectedWholeRowUnlitCount(整排路燈不亮) +
-  // undetectedDisabledCount(既有案件進行中，使用者稱之為「重複偵測」) +
-  // undetectedOtherCount(其他) = Info_Order 該週總筆數。
+  // 非清冊固定 0。依 notify_result 內容拆解，理想情況下（案件匯出檔案跟
+  // Info_Order 資料完全同步）systemCount(已成案) + ghostTicketCount(幽靈工單)
+  // + undetectedWholeRowUnlitCount(整排路燈不亮) + undetectedDisabledCount
+  // (既有案件進行中，使用者稱之為「重複偵測」) + undetectedOtherCount(其他)
+  // 會等於該週 Info_Order 自動偵測總筆數（不含手動G類）——但 systemCount 是
+  // 從案件匯出檔案獨立算出來的，不是直接由這四項推導，兩邊資料沒有完全同步
+  // 時（例如立案週次剛好跨到別週）加總不保證剛好吻合。
+  ghostTicketCount: number; // Info_Order 抓到工單編號，但該編號在案件匯出檔案裡查無案件（「幽靈工單」）
   undetectedWholeRowUnlitCount: number;
   undetectedDisabledCount: number;
   undetectedOtherCount: number;

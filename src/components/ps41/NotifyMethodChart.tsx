@@ -59,10 +59,12 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// 未開單對帳數字的統一格式："( N : 數字 )"，括號內外都留空格，徽章跟 tooltip
-// 共用同一個格式，避免「(N:52)」擠在一起不好讀。
-function formatUndetected(n: number): string {
-  return `( N : ${n} )`;
+// 系統開單旁邊的對帳輔助文字，徽章跟 tooltip 共用同一個格式：
+// 「GhostTicket : 數字」＝ Info_Order 抓到工單編號但案件匯出檔案查無案件的筆數
+// （見 infoOrderReconcile.ts 對「幽靈工單」的說明），「N : 數字」＝完全未開單。
+// 兩個都放進同一個括號，跟「( N : 數字 )」單獨一項時同樣括號內外留空格的風格。
+function formatSystemReconcile(ghost: number, undetected: number): string {
+  return `( GhostTicket : ${ghost} , N : ${undetected} )`;
 }
 
 // 用共用的離屏 canvas 量測文字實際像素寬度，讓徽章寬度可以跟著文字內容
@@ -153,26 +155,31 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
       const citizenTotal = weeks.reduce((s, w) => s + w.citizenCount, 0);
       const failTotal = weeks.reduce((s, w) => s + w.failCount, 0);
       // Info_Order 對帳輔助合計：只在清冊圖表顯示（跟 FAIL 只在清冊有意義同一
-      // 個前提），非清冊這三個欄位固定 0。明細（整排路燈不亮/重複偵測/其他）
+      // 個前提），非清冊這幾個欄位固定 0。明細（整排路燈不亮/重複偵測/其他）
       // 放在 tooltip 裡，徽章只顯示合計，維持單行版面。
+      const ghostTotal = weeks.reduce((s, w) => s + w.ghostTicketCount, 0);
       const undetectedTotal = weeks.reduce(
         (s, w) => s + w.undetectedWholeRowUnlitCount + w.undetectedDisabledCount + w.undetectedOtherCount,
         0
       );
 
-      const badgeDefs: { label: string; total: number; fill: string; suffix?: string }[] = [
+      const badgeDefs: { label: string; total: number; totalSuffix?: string; fill: string; suffix?: string }[] = [
         {
           label: "系統開單",
           total: systemTotal,
+          // 幽靈工單不算進系統開單本身（案件匯出檔案查無案件，不能算已成案），
+          // 但用「+N」讓人一眼看到「如果 Info_Order 記的工單號都算數，總數會是多少」，
+          // 方便跟維修案件統計頁籤（不分清冊、且不驗證案件是否存在）的總數對帳。
+          totalSuffix: showFail ? `+${ghostTotal}` : undefined,
           fill: c.system,
-          suffix: showFail ? ` ${formatUndetected(undetectedTotal)}` : undefined,
+          suffix: showFail ? ` ${formatSystemReconcile(ghostTotal, undetectedTotal)}` : undefined,
         },
         { label: "民眾通報", total: citizenTotal, fill: c.citizen },
       ];
       if (showFail) badgeDefs.push({ label: "FAIL", total: failTotal, fill: c.fail });
 
       const badges = badgeDefs.map((b) => {
-        const text = `${b.label} ${b.total}${b.suffix ?? ""}`;
+        const text = `${b.label} ${b.total}${b.totalSuffix ?? ""}${b.suffix ?? ""}`;
         const textWidth = measureTextWidth(text, BADGE_FONT_SIZE, BADGE_FONT_WEIGHT, FONT_FAMILY);
         // 跟 TicketCountChart 一樣用 BADGE_HEIGHT 當寬度下限，避免文字很短時
         // 寬度小於高度、圓角膠囊（r = height/2）反而變形。
@@ -323,11 +330,13 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
             const undetectedTotal = week.undetectedWholeRowUnlitCount + week.undetectedDisabledCount + week.undetectedOtherCount;
             const lines = params
               .map((p) => {
-                // 系統開單這行（僅清冊圖表）在數值後面直接附上未開單合計
-                // 「( N : 數字 )」，方便一眼看到對帳缺口，明細另外在下面一行列出
-                // （整排路燈不亮／重複偵測「既有案件進行中」／其他三個原因）。
+                // 系統開單這行（僅清冊圖表）在數值後面直接附上「+幽靈工單數」跟
+                // 「( 幽靈工單Y : 數字 , N : 數字 )」對帳合計，方便一眼看到對帳缺口，
+                // 明細另外在下面一行列出（整排路燈不亮／重複偵測「既有案件進行中」／其他）。
                 const isSystemLine = showFail && p.seriesName === "系統開單";
-                const main = `${p.marker ?? ""}${p.seriesName}：${p.value}${isSystemLine ? ` ${formatUndetected(undetectedTotal)}` : ""}`;
+                const totalSuffix = isSystemLine ? `+${week.ghostTicketCount}` : "";
+                const reconcileSuffix = isSystemLine ? ` ${formatSystemReconcile(week.ghostTicketCount, undetectedTotal)}` : "";
+                const main = `${p.marker ?? ""}${p.seriesName}：${p.value}${totalSuffix}${reconcileSuffix}`;
                 if (!isSystemLine) return main;
                 const sub =
                   `<span style="margin-left:16px;font-size:${TOOLTIP_SUB_FONT_SIZE}px;opacity:0.7">` +
