@@ -324,7 +324,8 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
             const lines = params
               .map((p) => {
                 // 系統開單這行（僅清冊圖表）在數值後面直接附上未開單合計
-                // 「( N : 數字 )」，方便一眼看到對帳缺口，明細另外在下面一行列出。
+                // 「( N : 數字 )」，方便一眼看到對帳缺口，明細另外在下面一行列出
+                // （整排路燈不亮／重複偵測「既有案件進行中」／其他三個原因）。
                 const isSystemLine = showFail && p.seriesName === "系統開單";
                 const main = `${p.marker ?? ""}${p.seriesName}：${p.value}${isSystemLine ? ` ${formatUndetected(undetectedTotal)}` : ""}`;
                 if (!isSystemLine) return main;

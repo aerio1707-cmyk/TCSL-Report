@@ -15,7 +15,7 @@ export function exportWeeklyReportWorkbook(stats: WeeklyStatsResult, rangeLabel:
     "民眾通報",
     "FAIL",
     "未開單-整排路燈不亮",
-    "未開單-重複偵測(此路燈已停用)",
+    "未開單-重複偵測(既有案件進行中)",
     "未開單-其他",
     ...LISTED_CHANNEL_HEADERS,
   ];

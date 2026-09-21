@@ -72,7 +72,7 @@ export interface WeeklyChannelBreakdown {
   // 非清冊固定 0。依 notify_result 內容拆解「未開單」的三種原因，四者相加＝
   // 該週 Info_Order 自動偵測總筆數（不含手動G類）：
   // systemCount(已成案) + undetectedWholeRowUnlitCount(整排路燈不亮) +
-  // undetectedDisabledCount(此路燈已停用，使用者稱之為「重複偵測」) +
+  // undetectedDisabledCount(既有案件進行中，使用者稱之為「重複偵測」) +
   // undetectedOtherCount(其他) = Info_Order 該週總筆數。
   undetectedWholeRowUnlitCount: number;
   undetectedDisabledCount: number;
