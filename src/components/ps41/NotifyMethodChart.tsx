@@ -39,6 +39,8 @@ const COLORS = {
 const BADGE_TEXT = "#ffffff";
 const BADGE_HEIGHT = 36;
 const BADGE_GAP = 10;
+const BADGE_ROW_GAP = 8; // 系統開單自己一行、民眾通報＋FAIL另一行時，兩行之間的垂直間距
+const BADGE_AREA_EXTRA_HEIGHT = BADGE_HEIGHT + BADGE_ROW_GAP; // 拆成兩行時，比單行多佔用的高度
 const BADGE_FONT_SIZE = 15;
 const BADGE_FONT_WEIGHT = "bold";
 // 徽章寬度改用文字實際量測寬度＋左右邊距動態計算，不再用固定寬度常數——
@@ -190,41 +192,51 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         return { ...b, text, width: Math.max(BADGE_HEIGHT, textWidth + BADGE_PADDING_X * 2) };
       });
 
-      // 徽章寬度不一致（系統開單在清冊圖表較寬），改成從右邊累加游標排列，
-      // 不能再用「固定寬度 × 索引」的等距算法。
-      const badgeRight: number[] = [];
-      let cursor = 24;
-      for (let i = badges.length - 1; i >= 0; i--) {
-        badgeRight[i] = cursor;
-        cursor += badges[i].width + BADGE_GAP;
-      }
+      // 系統開單塞了 GT/N 對帳文字後明顯比另外兩個徽章寬很多，擠在同一行寬度
+      // 落差太大不好看，改成系統開單自己一行、民眾通報＋FAIL 另起一行放在
+      // 下面。非清冊圖表沒有這串對帳文字，系統開單不會特別寬，維持原本單行。
+      const twoRows = showFail;
+      const badgeRows = twoRows ? [badges.slice(0, 1), badges.slice(1)] : [badges];
 
-      const graphic: echarts.EChartsOption["graphic"] = badges.map((b, i) => ({
-        type: "group",
-        right: badgeRight[i],
-        top: 54, // 標題+副標題在上方獨立一列，徽章另起一列避免三個徽章時跟標題文字重疊
-        children: [
-          {
-            type: "rect",
-            shape: { x: 0, y: 0, width: b.width, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
-            style: { fill: b.fill },
-          },
-          {
-            type: "text",
-            x: b.width / 2,
-            y: BADGE_HEIGHT / 2,
-            style: {
-              text: b.text,
-              fontWeight: BADGE_FONT_WEIGHT,
-              fill: BADGE_TEXT,
-              fontSize: BADGE_FONT_SIZE,
-              fontFamily: FONT_FAMILY,
-              align: "center",
-              verticalAlign: "middle",
+      // 徽章寬度不一致（系統開單在清冊圖表較寬），每一行都各自從右邊累加游標
+      // 排列，不能用「固定寬度 × 索引」的等距算法。
+      const graphic: echarts.EChartsOption["graphic"] = badgeRows.flatMap((rowBadges, rowIndex) => {
+        const rowRight: number[] = [];
+        let cursor = 24;
+        for (let i = rowBadges.length - 1; i >= 0; i--) {
+          rowRight[i] = cursor;
+          cursor += rowBadges[i].width + BADGE_GAP;
+        }
+        const top = 54 + rowIndex * (BADGE_HEIGHT + BADGE_ROW_GAP); // 標題+副標題在上方獨立一列，徽章另起一列避免跟標題文字重疊
+        return rowBadges.map((b, i) => ({
+          type: "group" as const,
+          right: rowRight[i],
+          top,
+          children: [
+            {
+              type: "rect" as const,
+              shape: { x: 0, y: 0, width: b.width, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
+              style: { fill: b.fill },
             },
-          },
-        ],
-      }));
+            {
+              type: "text" as const,
+              x: b.width / 2,
+              y: BADGE_HEIGHT / 2,
+              style: {
+                text: b.text,
+                fontWeight: BADGE_FONT_WEIGHT,
+                fill: BADGE_TEXT,
+                fontSize: BADGE_FONT_SIZE,
+                fontFamily: FONT_FAMILY,
+                align: "center",
+                verticalAlign: "middle",
+              },
+            },
+          ],
+        }));
+      });
+      // 兩行徽章比原本單行多佔一列高度，圖例/繪圖區要跟著往下挪，不然會被蓋住。
+      const badgeAreaExtra = twoRows ? BADGE_AREA_EXTRA_HEIGHT : 0;
 
       // 相近數值的標籤原本會直接疊在一起看不清楚（ECharts 內建的
       // labelLayout.moveOverlap 沒有把 backgroundColor/padding 的視覺大小算
@@ -285,8 +297,8 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           subtextStyle: { fontSize: 13, color: c.secondaryInk, fontFamily: FONT_FAMILY },
         },
         graphic,
-        grid: { left: 48, right: 56, top: 195, bottom: 60 },
-        legend: { top: 130, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
+        grid: { left: 48, right: 56, top: 195 + badgeAreaExtra, bottom: 60 },
+        legend: { top: 130 + badgeAreaExtra, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
         xAxis: {
           type: "category",
           data: weeks.map((w) => w.weekLabel),
@@ -369,5 +381,5 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
     };
   }, [title, rangeLabel, weeks, showFail]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: 460 }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: showFail ? 460 + BADGE_AREA_EXTRA_HEIGHT : 460 }} />;
 }
