@@ -354,11 +354,16 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
                 const reconcileSuffix = isSystemLine ? ` ${formatSystemReconcile(week.ghostTicketCount, undetectedTotal)}` : "";
                 const main = `${p.marker ?? ""}${p.seriesName}：${p.value}${totalSuffix}${reconcileSuffix}`;
                 if (!isSystemLine) return main;
-                const sub =
-                  `<span style="margin-left:16px;font-size:${TOOLTIP_SUB_FONT_SIZE}px;opacity:0.7">` +
+                const subStyle = `margin-left:16px;font-size:${TOOLTIP_SUB_FONT_SIZE}px;opacity:0.7`;
+                const subUndetected =
+                  `<span style="${subStyle}">` +
                   `↳ 未開單(${undetectedTotal})：整排路燈不亮${week.undetectedWholeRowUnlitCount}` +
                   `‧重複偵測${week.undetectedDisabledCount}‧其他${week.undetectedOtherCount}</span>`;
-                return `${main}<br/>${sub}`;
+                // 這裡沿用「↳」子項的縮排風格，但用全稱「GhostTicket」而不是徽章/
+                // 主行括號裡的縮寫「GT」——這是唯一一處刻意寫全稱的地方，方便第一次
+                // 看到這個詞的人知道 GT 是什麼的縮寫，其餘地方維持縮寫節省版面。
+                const subGhost = `<span style="${subStyle}">↳ GhostTicket : ${week.ghostTicketCount}</span>`;
+                return `${main}<br/>${subUndetected}<br/>${subGhost}`;
               })
               .join("<br/>");
             return `${week.weekLabel}　${dateRange}<br/>${lines}`;
