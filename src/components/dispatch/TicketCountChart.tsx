@@ -69,7 +69,11 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
     const chart = echarts.init(el);
     const ticketedTotal = buckets.reduce((sum, b) => sum + b.ticketedCount, 0);
     const undetectedTotal = buckets.reduce((sum, b) => sum + b.undetectedCount, 0);
-    const badgeMainText = `${ticketedTotal} (N : ${undetectedTotal})`;
+    // 案件檔案裡真實存在、但 Info_Order 找不到建立紀錄的案件（見
+    // buildTicketCountSeries.ts 對 missingLogCount 的說明），用「+N」加在
+    // 實際開單數後面，只在有這種特例時才顯示，不常態佔版面。
+    const missingLogTotal = buckets.reduce((sum, b) => sum + b.missingLogCount, 0);
+    const badgeMainText = `${ticketedTotal}${missingLogTotal > 0 ? `+${missingLogTotal}` : ""} (N : ${undetectedTotal})`;
     const badgeAnnotationText = "實際開單數 ( 僅偵測未開單 )";
     const mainTextWidth = measureTextWidth(badgeMainText, BADGE_FONT_SIZE, "bold");
     const annotationTextWidth = measureTextWidth(badgeAnnotationText, BADGE_ANNOTATION_FONT_SIZE, "normal");
@@ -158,10 +162,13 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
               color: c.primaryInk,
               fontFamily: FONT_FAMILY,
               // 實際開單數 (僅偵測未開單數)，例如「5 (9)」；兩數相加＝當天總偵測數。
+              // 當天若有「案件存在但Info_Order查無建立紀錄」的特例，開單數後面
+              // 加「+N」，例如「7+1 (5)」，明細（案件編號）列在 tooltip 裡。
               formatter: (params) => {
                 const bucket = buckets[params.dataIndex ?? 0];
                 if (!bucket) return "";
-                return `${bucket.ticketedCount} (${bucket.undetectedCount})`;
+                const missingLogSuffix = bucket.missingLogCount > 0 ? `+${bucket.missingLogCount}` : "";
+                return `${bucket.ticketedCount}${missingLogSuffix} (${bucket.undetectedCount})`;
               },
             },
             lineStyle: { color: c.line, width: 2 },
@@ -179,6 +186,11 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
             const bucket = buckets[idx];
             if (!bucket) return "";
             const lines = bucket.categories.map((cat) => `${cat.category}：${cat.count}`);
+            if (bucket.missingLogCount > 0) {
+              lines.push(
+                `<span style="opacity:0.7">↳ 查無Info_Order建立紀錄(${bucket.missingLogCount})：${bucket.missingLogCaseNos.join("、")}</span>`
+              );
+            }
             return [`${bucket.label}（總計 ${bucket.total}）`, ...lines].join("<br/>");
           },
         },

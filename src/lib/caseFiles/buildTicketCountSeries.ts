@@ -1,4 +1,13 @@
-import type { DispatchRow } from "./types";
+import type { CaseMasterRow, DispatchRow } from "./types";
+
+// 只有「自主API」的案件才有理由要求 Info_Order 裡有對應的建立紀錄——用真實
+// 資料驗證過：自主API 500 筆裡 494 筆（98.8%）比對得到 Info_Order 工單，
+// 剩下 6 筆才是真的缺紀錄；「承商自主通報」雖然跟自主API一樣算「系統開單」
+// （比照 ps41/channelBucket.ts 的分類），但 25 筆裡 0 筆比對得到——這個來源
+// 是承商直接回報，本來就不會經過 Info_Order 偵測，不是「缺紀錄」的特例，
+// 拿來比對只會把正常案件全部誤判成異常。民眾通報幾類同理，本來就不是系統
+// 偵測出來的，也不能拿來比對。
+const SYSTEM_SOURCE_WITH_INFO_ORDER_LOG = "自主API";
 
 // 「派案類別統計」的 6 種固定分類，依 Info_Order 的 type 代碼 1:1 對應
 // （B/D/F/H/I 各自對應固定文字；G=手動開立工單，內容本身不固定，但這張圖裡
@@ -34,6 +43,15 @@ export interface PeriodBucket {
   total: number;
   ticketedCount: number; // notify_result 抓得到工單編號＝實際開單（沿用 DispatchRow.ticketNo）
   undetectedCount: number; // total - ticketedCount，僅偵測未開單
+  // 案件檔案裡真實存在（系統來源）、但整份 Info_Order 找不到對應「工單編號：」
+  // 建立紀錄的案件數——跟 PS4.1 的「幽靈工單」相反：那邊是 Info_Order 有紀錄、
+  // 案件系統沒有；這裡是案件系統有這筆案件、但 Info_Order 沒留下建立紀錄。
+  // 依「立案日期」歸到對應的日期桶，不計入 total／ticketedCount（本來就不在
+  // Info_Order 資料裡，加進 total 會讓這個欄位失去「Info_Order 筆數」的意義），
+  // 徽章/折線標籤改用「ticketedCount+missingLogCount」呈現，兩邊圖表的開單
+  // 總數才能對得起來。
+  missingLogCount: number;
+  missingLogCaseNos: string[]; // 供 tooltip 列出案件編號
   categories: CategoryCount[];
 }
 
@@ -100,11 +118,17 @@ interface MutableBucket {
   total: number;
   ticketedCount: number;
   undetectedCount: number;
+  missingLogCount: number;
+  missingLogCaseNos: string[];
   byCategory: Map<string, number>;
   byDistrict: Map<string, number>;
 }
 
-export function buildTicketCountSeries(rows: DispatchRow[], options: BuildSeriesOptions): PeriodBucket[] {
+function newBucket(label: string): MutableBucket {
+  return { label, total: 0, ticketedCount: 0, undetectedCount: 0, missingLogCount: 0, missingLogCaseNos: [], byCategory: new Map(), byDistrict: new Map() };
+}
+
+export function buildTicketCountSeries(rows: DispatchRow[], caseRows: CaseMasterRow[], options: BuildSeriesOptions): PeriodBucket[] {
   const start = new Date(`${options.start}T00:00:00`);
   const end = new Date(`${options.end}T23:59:59`);
 
@@ -117,7 +141,7 @@ export function buildTicketCountSeries(rows: DispatchRow[], options: BuildSeries
     const { key, label } = bucketKeyAndLabel(date, options.granularity);
     let bucket = buckets.get(key);
     if (!bucket) {
-      bucket = { label, total: 0, ticketedCount: 0, undetectedCount: 0, byCategory: new Map(), byDistrict: new Map() };
+      bucket = newBucket(label);
       buckets.set(key, bucket);
     }
     bucket.total++;
@@ -136,6 +160,24 @@ export function buildTicketCountSeries(rows: DispatchRow[], options: BuildSeries
     }
   }
 
+  const knownTicketNos = new Set(rows.map((r) => r.ticketNo).filter((t) => t !== ""));
+  for (const c of caseRows) {
+    if (c.reportSource !== SYSTEM_SOURCE_WITH_INFO_ORDER_LOG) continue;
+    if (knownTicketNos.has(c.caseNo)) continue; // Info_Order 裡有對應的建立紀錄，不是這種特例
+
+    const date = parseCreationDate(c.filedDate);
+    if (!date || date < start || date > end) continue;
+
+    const { key, label } = bucketKeyAndLabel(date, options.granularity);
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = newBucket(label);
+      buckets.set(key, bucket);
+    }
+    bucket.missingLogCount++;
+    bucket.missingLogCaseNos.push(c.caseNo);
+  }
+
   return [...buckets.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, b]) => ({
@@ -144,6 +186,8 @@ export function buildTicketCountSeries(rows: DispatchRow[], options: BuildSeries
       total: b.total,
       ticketedCount: b.ticketedCount,
       undetectedCount: b.undetectedCount,
+      missingLogCount: b.missingLogCount,
+      missingLogCaseNos: b.missingLogCaseNos,
       categories: [...b.byCategory.entries()]
         .sort(([, c1], [, c2]) => c2 - c1)
         .map(([category, count]) => ({

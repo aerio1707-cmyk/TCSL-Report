@@ -34,7 +34,7 @@ export function CaseFilesPage() {
 
   const buckets = useMemo(() => {
     if (!result?.dispatch || !chartRange) return [];
-    return buildTicketCountSeries(result.dispatch.rows, chartRange);
+    return buildTicketCountSeries(result.dispatch.rows, result.caseMaster?.rows ?? [], chartRange);
   }, [result, chartRange]);
 
   const handleFilesSelected = (newFiles: File[]) => {
