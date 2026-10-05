@@ -37,11 +37,18 @@ const COLORS = {
 };
 
 const BADGE_TEXT = "#ffffff";
-const BADGE_HEIGHT = 36;
+// 徽章字級 15→21（+6）、標題字級 21→25（+4），比照使用者指定的版面調整；
+// 徽章高度跟著字級等比放大（原本 36 是配 15px 字的高度，字變大後沿用會太擠）。
+const TITLE_FONT_SIZE = 25;
+const SUBTITLE_FONT_SIZE = 13;
+const BADGE_FONT_SIZE = 21;
+const BADGE_HEIGHT = 44;
 const BADGE_GAP = 10;
 const BADGE_ROW_GAP = 8; // 系統開單自己一行、民眾通報＋FAIL另一行時，兩行之間的垂直間距
 const BADGE_AREA_EXTRA_HEIGHT = BADGE_HEIGHT + BADGE_ROW_GAP; // 拆成兩行時，比單行多佔用的高度
-const BADGE_FONT_SIZE = 15;
+// 徽章改成跟標題同一個高度基準起算（原本徽章在標題+副標題下方另起一列，
+// 現在改成跟標題頂端齊平，比照「開單數量統計」頁籤的版面）。
+const BADGE_TOP = 10;
 const BADGE_FONT_WEIGHT = "bold";
 // 徽章寬度改用文字實際量測寬度＋左右邊距動態計算，不再用固定寬度常數——
 // 邊距是文字左右兩側各自的留白。數值比照「維修案件統計」頁籤（TicketCountChart）
@@ -207,7 +214,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           rowRight[i] = cursor;
           cursor += rowBadges[i].width + BADGE_GAP;
         }
-        const top = 54 + rowIndex * (BADGE_HEIGHT + BADGE_ROW_GAP); // 標題+副標題在上方獨立一列，徽章另起一列避免跟標題文字重疊
+        const top = BADGE_TOP + rowIndex * (BADGE_HEIGHT + BADGE_ROW_GAP); // 跟標題頂端齊平，不再另外下移一整列
         return rowBadges.map((b, i) => ({
           type: "group" as const,
           right: rowRight[i],
@@ -293,12 +300,14 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
           left: "center",
           top: 4,
           itemGap: 8,
-          textStyle: { fontSize: 21, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
-          subtextStyle: { fontSize: 13, color: c.secondaryInk, fontFamily: FONT_FAMILY },
+          textStyle: { fontSize: TITLE_FONT_SIZE, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
+          subtextStyle: { fontSize: SUBTITLE_FONT_SIZE, color: c.secondaryInk, fontFamily: FONT_FAMILY },
         },
         graphic,
-        grid: { left: 48, right: 56, top: 195 + badgeAreaExtra, bottom: 60 },
-        legend: { top: 130 + badgeAreaExtra, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
+        // 徽章現在跟標題齊平、不再另外佔一整列，圖例/繪圖區的起始位置跟著往上收，
+        // 只有清冊圖表（兩行徽章）才需要多讓一點空間。
+        grid: { left: 48, right: 56, top: 145 + badgeAreaExtra, bottom: 60 },
+        legend: { top: 80 + badgeAreaExtra, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
         xAxis: {
           type: "category",
           data: weeks.map((w) => w.weekLabel),
