@@ -1,10 +1,11 @@
-import { filterSmartLampCollisions } from "../caseFiles/buildCaseMaster";
+import { buildCaseMaster, filterSmartLampCollisions } from "../caseFiles/buildCaseMaster";
+import { buildDispatchRows } from "../caseFiles/buildDispatchRows";
 import { dedupeRows } from "../caseFiles/dedupe";
 import { identifyFile } from "../caseFiles/identifyFile";
 import { readCaseExportFile } from "../caseFiles/parseCaseExport";
 import { readInfoOrderFile } from "../caseFiles/parseInfoOrder";
 import { readLampMasterFile } from "../caseFiles/parseLampMaster";
-import type { CaseExportRow, InfoOrderRow, LampMasterRow } from "../caseFiles/types";
+import type { CaseExportRow, CaseMasterRow, DispatchRow, InfoOrderRow, LampMasterRow } from "../caseFiles/types";
 import { buildAllCaseRows } from "./buildAllCaseRows";
 import { buildAnalysisCandidates } from "./buildAnalysisCandidates";
 import { classifyAllCases, countUnclassifiedByBlankController } from "./classifyAllCases";
@@ -35,6 +36,11 @@ export interface Ps41AnalysisResult {
   // 智能燈清冊可能有多份、分不同生效日期（見 lampListVersions.ts），依日期
   // 挑當時生效的版本，不是單一份 lampSet。
   lampListVersions: LampListVersion[];
+  // 背景比對用：跟「維修案件統計」頁籤同一套中繼資料（同一套去重/合併規則，
+  // 只是不在這個頁面顯示），給 ticketCountConsistency.ts 算「開單數量統計」
+  // 頁籤的等效總數，不用使用者另外跑一次那個頁籤就能知道兩邊數字是否一致。
+  dispatchRows: DispatchRow[];
+  caseMasterRows: CaseMasterRow[];
 }
 
 // 跟既有「案件主檔」頁籤共用同一套檔案辨識/解析/去重模組，合併時同樣先篩掉
@@ -85,6 +91,9 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
   const infoOrderIndex = buildInfoOrderIndex(infoOrderDedup.rows);
   const candidates = buildAnalysisCandidates(classifiedRows, infoOrderIndex);
 
+  const dispatchRows = buildDispatchRows(infoOrderDedup.rows).rows;
+  const caseMasterRows = buildCaseMaster(repairDedup.rows, reportDedup.rows).rows;
+
   return {
     classifiedRows,
     candidates,
@@ -100,5 +109,7 @@ export async function analyzePs41Uploads(files: File[]): Promise<Ps41AnalysisRes
     nonSmartLampReportExcluded: allCaseRowsResult.nonSmartLampReportExcluded,
     infoOrderRowsData: infoOrderDedup.rows,
     lampListVersions,
+    dispatchRows,
+    caseMasterRows,
   };
 }

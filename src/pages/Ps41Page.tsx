@@ -9,6 +9,7 @@ import { buildWeeklyStats, filterWeeklyStatsRange } from "../lib/ps41/buildWeekl
 import { exportAnalysisListWorkbook, exportFailListWorkbook } from "../lib/ps41/exportAnalysisLists";
 import { exportWeeklyReportWorkbook } from "../lib/ps41/exportWeeklyReport";
 import { applyReviewDecisions, exportReviewDecisions, parseReviewDecisionFile } from "../lib/ps41/reviewDecisions";
+import { buildLastWeekConsistencyCheck } from "../lib/ps41/ticketCountConsistency";
 import type { AnalysisCandidateRow } from "../lib/ps41/types";
 import { formatWeekRangeAsDates } from "../lib/ps41/weekBucket";
 
@@ -32,6 +33,22 @@ export function Ps41Page() {
     if (!result) return null;
     return buildWeeklyStats(result.classifiedRows, candidates, result.infoOrderRowsData, result.lampListVersions);
   }, [result, candidates]);
+
+  // 跟「維修案件統計」頁籤的開單數量比對：只看上一週，不用使用者額外跑一次
+  // 那個頁籤。只給數字（總數、落差、哪幾天有落差），不猜落差原因——見
+  // ticketCountConsistency.ts 的說明。
+  const consistencyCheck = useMemo(() => {
+    if (!result || !weeklyStatsFull || weeklyStatsFull.listed.length === 0) return null;
+    const lastWeek = weeklyStatsFull.listed[weeklyStatsFull.listed.length - 1];
+    return buildLastWeekConsistencyCheck(
+      result.classifiedRows,
+      result.infoOrderRowsData,
+      result.lampListVersions,
+      lastWeek,
+      result.dispatchRows,
+      result.caseMasterRows
+    );
+  }, [result, weeklyStatsFull]);
 
   const availableWeeks = useMemo(() => {
     if (!weeklyStatsFull) return [];
@@ -159,6 +176,35 @@ export function Ps41Page() {
                 { label: "來源檔案", render: (r) => r.sourceFile },
               ]}
             />
+          )}
+        </section>
+      )}
+
+      {consistencyCheck && (
+        <section className="panel">
+          <h2>開單數量一致性檢查</h2>
+          {consistencyCheck.diff === 0 ? (
+            <div className="alert alert-success">
+              ✓ 上週（{consistencyCheck.weekLabel}）開單數量一致：PS4.1 與開單數量統計都是 {consistencyCheck.ps41Total} 筆
+            </div>
+          ) : (
+            // alert-warning 預設是單行 flex 排列（給撞號警示那種「文字+按鈕」用），
+            // 這裡內容是「一行結論＋多行日期清單」，改成 block 讓清單換行獨立顯示。
+            <div className="alert alert-warning" style={{ display: "block" }}>
+              <div>
+                ⚠ 上週（{consistencyCheck.weekLabel}）開單數量不一致：PS4.1 {consistencyCheck.ps41Total} 筆、開單數量統計{" "}
+                {consistencyCheck.ticketCountTotal} 筆，相差 {Math.abs(consistencyCheck.diff)} 筆
+              </div>
+              {consistencyCheck.dailyMismatches.length > 0 && (
+                <ul className="annotation-list">
+                  {consistencyCheck.dailyMismatches.map((d) => (
+                    <li key={d.date}>
+                      {d.date}：PS4.1 {d.ps41Total} 筆、開單數量統計 {d.ticketCountTotal} 筆（相差 {Math.abs(d.diff)} 筆）
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </section>
       )}
