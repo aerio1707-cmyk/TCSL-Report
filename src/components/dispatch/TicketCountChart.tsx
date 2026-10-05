@@ -31,14 +31,14 @@ const CHART_COLORS = {
 // 徽章固定用橘底＋白字（不隨主題切換），測試效果用；原本是深藍底。
 const BADGE_FILL = "#c9670b";
 const BADGE_TEXT = "#ffffff";
-const BADGE_SUB_TEXT = "rgba(255, 255, 255, 0.85)";
+const BADGE_RADIUS = 10; // 比照 PS4.1 通報方式統計徽章的圓角矩形，不再用膠囊形
 const BADGE_FONT_SIZE = 26;
 const BADGE_ANNOTATION_FONT_SIZE = 19;
 const BADGE_PADDING_X = 16;
 const BADGE_PADDING_Y = 8;
 const BADGE_LINE_GAP = 4;
-// 徽章第二行是小字註記，說明第一行數字的意義（例如「實際開單數 (僅偵測未開單)」），
-// 高度改成依兩行文字堆疊算出，不再是單行固定值。
+// 徽章格式比照 PS4.1：主行「實際開單數 : 數字」，第二行小字「( N : 數字 )」，
+// 高度依兩行文字堆疊算出。
 const BADGE_HEIGHT = BADGE_PADDING_Y * 2 + BADGE_FONT_SIZE + BADGE_LINE_GAP + BADGE_ANNOTATION_FONT_SIZE;
 const BADGE_MAIN_TEXT_Y = BADGE_PADDING_Y + BADGE_FONT_SIZE / 2;
 const BADGE_ANNOTATION_TEXT_Y = BADGE_PADDING_Y + BADGE_FONT_SIZE + BADGE_LINE_GAP + BADGE_ANNOTATION_FONT_SIZE / 2;
@@ -73,8 +73,8 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
     // buildTicketCountSeries.ts 對 missingLogCount 的說明），用「+N」加在
     // 實際開單數後面，只在有這種特例時才顯示，不常態佔版面。
     const missingLogTotal = buckets.reduce((sum, b) => sum + b.missingLogCount, 0);
-    const badgeMainText = `${ticketedTotal}${missingLogTotal > 0 ? `+${missingLogTotal}` : ""} ( N : ${undetectedTotal} )`;
-    const badgeAnnotationText = "實際開單數 ( 僅偵測未開單 )";
+    const badgeMainText = `實際開單數 : ${ticketedTotal}${missingLogTotal > 0 ? `+${missingLogTotal}` : ""}`;
+    const badgeAnnotationText = `( N : ${undetectedTotal} )`;
     const mainTextWidth = measureTextWidth(badgeMainText, BADGE_FONT_SIZE, "bold");
     const annotationTextWidth = measureTextWidth(badgeAnnotationText, BADGE_ANNOTATION_FONT_SIZE, "normal");
     const badgeWidth = Math.max(mainTextWidth, annotationTextWidth) + BADGE_PADDING_X * 2;
@@ -104,7 +104,7 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
             children: [
               {
                 type: "rect",
-                shape: { x: 0, y: 0, width: badgeWidth, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
+                shape: { x: 0, y: 0, width: badgeWidth, height: BADGE_HEIGHT, r: BADGE_RADIUS },
                 style: { fill: BADGE_FILL },
               },
               {
@@ -127,7 +127,8 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
                 y: BADGE_ANNOTATION_TEXT_Y,
                 style: {
                   text: badgeAnnotationText,
-                  fill: BADGE_SUB_TEXT,
+                  fill: BADGE_TEXT,
+                  opacity: 0.9,
                   fontSize: BADGE_ANNOTATION_FONT_SIZE,
                   fontFamily: FONT_FAMILY,
                   align: "center",
