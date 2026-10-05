@@ -37,19 +37,22 @@ const COLORS = {
 };
 
 const BADGE_TEXT = "#ffffff";
-// 徽章字級 15→21（+6）、標題字級 21→25（+4），比照使用者指定的版面調整；
-// 徽章高度跟著字級等比放大（原本 36 是配 15px 字的高度，字變大後沿用會太擠）。
+// 徽章字級 15→21→19（+6 再 -2）、標題字級 21→25（+4），比照使用者指定的版面調整。
 const TITLE_FONT_SIZE = 25;
 const SUBTITLE_FONT_SIZE = 13;
-const BADGE_FONT_SIZE = 21;
-const BADGE_HEIGHT = 44;
-const BADGE_GAP = 10;
-const BADGE_ROW_GAP = 8; // 系統開單自己一行、民眾通報＋FAIL另一行時，兩行之間的垂直間距
-const BADGE_AREA_EXTRA_HEIGHT = BADGE_HEIGHT + BADGE_ROW_GAP; // 拆成兩行時，比單行多佔用的高度
+const BADGE_FONT_SIZE = 19;
+const BADGE_SUB_FONT_SIZE = 13; // 系統開單第二行「( GT : .. , N : .. )」的字級，比主文字小一階
+const BADGE_FONT_WEIGHT = "bold";
+// 三個徽章（系統開單/民眾通報/FAIL）各自獨立膠囊時，系統開單塞了 GT/N 對帳
+// 文字會比另外兩個寬很多，排列起來長短不一不好看。改成三個徽章合併成一個
+// 色塊堆疊的框：寬度統一取三者最寬需求，只有最外層（頂/底）保留圓角，色塊
+// 之間緊貼無縫，比照使用者提供的參考截圖。
+const BADGE_RADIUS = 10;
+const BADGE_SEGMENT_PADDING_Y = 8;
+const BADGE_SEGMENT_LINE_GAP = 4; // 系統開單色塊內，主文字跟 GT/N 子行之間的垂直間距
 // 徽章改成跟標題同一個高度基準起算（原本徽章在標題+副標題下方另起一列，
 // 現在改成跟標題頂端齊平，比照「開單數量統計」頁籤的版面）。
 const BADGE_TOP = 10;
-const BADGE_FONT_WEIGHT = "bold";
 // 徽章寬度改用文字實際量測寬度＋左右邊距動態計算，不再用固定寬度常數——
 // 邊距是文字左右兩側各自的留白。數值比照「維修案件統計」頁籤（TicketCountChart）
 // 已確認過的版面。
@@ -150,6 +153,20 @@ function stackedLabelLayout(levels: Record<StackKey, number>[], key: StackKey): 
   return (params) => ({ dy: -(levels[params.dataIndex ?? 0]?.[key] ?? 0) * LABEL_BOX_HEIGHT });
 }
 
+const TITLE_BLOCK_HEIGHT = 58; // 標題+副標題估計高度
+const SYSTEM_SEGMENT_HEIGHT_WITH_SUB = BADGE_SEGMENT_PADDING_Y * 2 + BADGE_FONT_SIZE + BADGE_SEGMENT_LINE_GAP + BADGE_SUB_FONT_SIZE;
+const SINGLE_LINE_SEGMENT_HEIGHT = BADGE_SEGMENT_PADDING_Y * 2 + BADGE_FONT_SIZE;
+
+// 徽章堆疊的色塊高度只取決於 showFail（有沒有 GT/N 子行、有沒有 FAIL 色塊），
+// 跟實際數字內容無關，所以可以在 render() 之外算、供 JSX 的容器高度共用，
+// 不用把這個計算重複寫一份。
+function computeBadgeAreaExtra(showFail: boolean): number {
+  const stackHeight = showFail
+    ? SYSTEM_SEGMENT_HEIGHT_WITH_SUB + SINGLE_LINE_SEGMENT_HEIGHT * 2
+    : SINGLE_LINE_SEGMENT_HEIGHT * 2;
+  return Math.max(0, BADGE_TOP + stackHeight - TITLE_BLOCK_HEIGHT);
+}
+
 export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -173,77 +190,83 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         0
       );
 
-      const badgeDefs: { label: string; labelSep?: string; total: number; totalSuffix?: string; fill: string; suffix?: string }[] = [
+      const badgeDefs: { label: string; total: number; totalSuffix?: string; fill: string; subText?: string }[] = [
         {
           label: "系統開單",
-          // 徽章塞了總數＋GT/N對帳文字，用「 : 」隔開標籤跟數字，跟其他兩個
-          // 徽章（標籤直接接數字，不加冒號）區分開來，視覺上比較容易分段閱讀。
-          labelSep: showFail ? " : " : undefined,
           total: systemTotal,
           // 幽靈工單不算進系統開單本身（案件匯出檔案查無案件，不能算已成案），
           // 但用「+N」讓人一眼看到「如果 Info_Order 記的工單號都算數，總數會是多少」，
           // 方便跟維修案件統計頁籤（不分清冊、且不驗證案件是否存在）的總數對帳。
           totalSuffix: showFail ? `+${ghostTotal}` : undefined,
           fill: c.system,
-          suffix: showFail ? ` ${formatSystemReconcile(ghostTotal, undetectedTotal)}` : undefined,
+          subText: showFail ? formatSystemReconcile(ghostTotal, undetectedTotal) : undefined,
         },
         { label: "民眾通報", total: citizenTotal, fill: c.citizen },
       ];
       if (showFail) badgeDefs.push({ label: "FAIL", total: failTotal, fill: c.fail });
 
-      const badges = badgeDefs.map((b) => {
-        const text = `${b.label}${b.labelSep ?? " "}${b.total}${b.totalSuffix ?? ""}${b.suffix ?? ""}`;
-        const textWidth = measureTextWidth(text, BADGE_FONT_SIZE, BADGE_FONT_WEIGHT, FONT_FAMILY);
-        // 跟 TicketCountChart 一樣用 BADGE_HEIGHT 當寬度下限，避免文字很短時
-        // 寬度小於高度、圓角膠囊（r = height/2）反而變形。
-        return { ...b, text, width: Math.max(BADGE_HEIGHT, textWidth + BADGE_PADDING_X * 2) };
+      const segments = badgeDefs.map((b) => {
+        const mainText = `${b.label} : ${b.total}${b.totalSuffix ?? ""}`;
+        const mainWidth = measureTextWidth(mainText, BADGE_FONT_SIZE, BADGE_FONT_WEIGHT, FONT_FAMILY);
+        const subWidth = b.subText ? measureTextWidth(b.subText, BADGE_SUB_FONT_SIZE, "normal", FONT_FAMILY) : 0;
+        const height = b.subText
+          ? BADGE_SEGMENT_PADDING_Y * 2 + BADGE_FONT_SIZE + BADGE_SEGMENT_LINE_GAP + BADGE_SUB_FONT_SIZE
+          : BADGE_SEGMENT_PADDING_Y * 2 + BADGE_FONT_SIZE;
+        return { ...b, mainText, height, naturalWidth: Math.max(mainWidth, subWidth) };
       });
+      // 三個色塊共用同一個寬度（取三者需求最大值），不再各自量身寬度——這正是
+      // 要解決「長短不一不好看」的關鵰，寬度不夠放的色塊文字置中後兩側留白。
+      const badgeWidth = Math.max(...segments.map((s) => s.naturalWidth + BADGE_PADDING_X * 2));
+      const badgeStackHeight = segments.reduce((sum, s) => sum + s.height, 0);
 
-      // 系統開單塞了 GT/N 對帳文字後明顯比另外兩個徽章寬很多，擠在同一行寬度
-      // 落差太大不好看，改成系統開單自己一行、民眾通報＋FAIL 另起一行放在
-      // 下面。非清冊圖表沒有這串對帳文字，系統開單不會特別寬，維持原本單行。
-      const twoRows = showFail;
-      const badgeRows = twoRows ? [badges.slice(0, 1), badges.slice(1)] : [badges];
-
-      // 徽章寬度不一致（系統開單在清冊圖表較寬），每一行都各自從右邊累加游標
-      // 排列，不能用「固定寬度 × 索引」的等距算法。
-      const graphic: echarts.EChartsOption["graphic"] = badgeRows.flatMap((rowBadges, rowIndex) => {
-        const rowRight: number[] = [];
-        let cursor = 24;
-        for (let i = rowBadges.length - 1; i >= 0; i--) {
-          rowRight[i] = cursor;
-          cursor += rowBadges[i].width + BADGE_GAP;
+      // echarts 的 graphic children 型別在巢狀 union 下 TS 解不出索引簽名，
+      // 這裡直接用寬鬆型別宣告，實際內容仍是 rect/text 兩種合法的 graphic 元素。
+      const badgeChildren: Record<string, unknown>[] = [];
+      let cursorY = 0;
+      segments.forEach((seg, i) => {
+        const isFirst = i === 0;
+        const isLast = i === segments.length - 1;
+        // 只有最外層（第一個色塊的頂、最後一個色塊的底）保留圓角，色塊之間緊貼無縫。
+        const r: [number, number, number, number] = [
+          isFirst ? BADGE_RADIUS : 0,
+          isFirst ? BADGE_RADIUS : 0,
+          isLast ? BADGE_RADIUS : 0,
+          isLast ? BADGE_RADIUS : 0,
+        ];
+        badgeChildren.push({
+          type: "rect",
+          shape: { x: 0, y: cursorY, width: badgeWidth, height: seg.height, r },
+          style: { fill: seg.fill },
+        });
+        if (seg.subText) {
+          const mainY = cursorY + BADGE_SEGMENT_PADDING_Y + BADGE_FONT_SIZE / 2;
+          const subY = cursorY + BADGE_SEGMENT_PADDING_Y + BADGE_FONT_SIZE + BADGE_SEGMENT_LINE_GAP + BADGE_SUB_FONT_SIZE / 2;
+          badgeChildren.push({
+            type: "text",
+            x: badgeWidth / 2,
+            y: mainY,
+            style: { text: seg.mainText, fontWeight: BADGE_FONT_WEIGHT, fill: BADGE_TEXT, fontSize: BADGE_FONT_SIZE, fontFamily: FONT_FAMILY, align: "center", verticalAlign: "middle" },
+          });
+          badgeChildren.push({
+            type: "text",
+            x: badgeWidth / 2,
+            y: subY,
+            style: { text: seg.subText, fill: BADGE_TEXT, fontSize: BADGE_SUB_FONT_SIZE, fontFamily: FONT_FAMILY, align: "center", verticalAlign: "middle", opacity: 0.9 },
+          });
+        } else {
+          badgeChildren.push({
+            type: "text",
+            x: badgeWidth / 2,
+            y: cursorY + seg.height / 2,
+            style: { text: seg.mainText, fontWeight: BADGE_FONT_WEIGHT, fill: BADGE_TEXT, fontSize: BADGE_FONT_SIZE, fontFamily: FONT_FAMILY, align: "center", verticalAlign: "middle" },
+          });
         }
-        const top = BADGE_TOP + rowIndex * (BADGE_HEIGHT + BADGE_ROW_GAP); // 跟標題頂端齊平，不再另外下移一整列
-        return rowBadges.map((b, i) => ({
-          type: "group" as const,
-          right: rowRight[i],
-          top,
-          children: [
-            {
-              type: "rect" as const,
-              shape: { x: 0, y: 0, width: b.width, height: BADGE_HEIGHT, r: BADGE_HEIGHT / 2 },
-              style: { fill: b.fill },
-            },
-            {
-              type: "text" as const,
-              x: b.width / 2,
-              y: BADGE_HEIGHT / 2,
-              style: {
-                text: b.text,
-                fontWeight: BADGE_FONT_WEIGHT,
-                fill: BADGE_TEXT,
-                fontSize: BADGE_FONT_SIZE,
-                fontFamily: FONT_FAMILY,
-                align: "center",
-                verticalAlign: "middle",
-              },
-            },
-          ],
-        }));
+        cursorY += seg.height;
       });
-      // 兩行徽章比原本單行多佔一列高度，圖例/繪圖區要跟著往下挪，不然會被蓋住。
-      const badgeAreaExtra = twoRows ? BADGE_AREA_EXTRA_HEIGHT : 0;
+
+      const graphic: echarts.EChartsOption["graphic"] = [{ type: "group", right: 24, top: BADGE_TOP, children: badgeChildren }];
+      // 跟標題+副標題估計高度比，誰比較高就讓誰決定圖例/繪圖區起始位置。
+      const badgeAreaExtra = Math.max(0, BADGE_TOP + badgeStackHeight - TITLE_BLOCK_HEIGHT);
 
       // 相近數值的標籤原本會直接疊在一起看不清楚（ECharts 內建的
       // labelLayout.moveOverlap 沒有把 backgroundColor/padding 的視覺大小算
@@ -395,5 +418,5 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
     };
   }, [title, rangeLabel, weeks, showFail]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: showFail ? 460 + BADGE_AREA_EXTRA_HEIGHT : 460 }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: 460 + computeBadgeAreaExtra(showFail) }} />;
 }
