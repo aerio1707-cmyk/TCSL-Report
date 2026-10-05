@@ -73,7 +73,7 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
     // buildTicketCountSeries.ts 對 missingLogCount 的說明），用「+N」加在
     // 實際開單數後面，只在有這種特例時才顯示，不常態佔版面。
     const missingLogTotal = buckets.reduce((sum, b) => sum + b.missingLogCount, 0);
-    const badgeMainText = `${ticketedTotal}${missingLogTotal > 0 ? `+${missingLogTotal}` : ""} (N : ${undetectedTotal})`;
+    const badgeMainText = `${ticketedTotal}${missingLogTotal > 0 ? `+${missingLogTotal}` : ""} ( N : ${undetectedTotal} )`;
     const badgeAnnotationText = "實際開單數 ( 僅偵測未開單 )";
     const mainTextWidth = measureTextWidth(badgeMainText, BADGE_FONT_SIZE, "bold");
     const annotationTextWidth = measureTextWidth(badgeAnnotationText, BADGE_ANNOTATION_FONT_SIZE, "normal");
