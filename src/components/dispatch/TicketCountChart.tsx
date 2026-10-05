@@ -158,7 +158,7 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
             label: {
               show: true,
               position: "top",
-              fontSize: 14,
+              fontSize: 16,
               fontWeight: 600,
               color: c.primaryInk,
               fontFamily: FONT_FAMILY,
