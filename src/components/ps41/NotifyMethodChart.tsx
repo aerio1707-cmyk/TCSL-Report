@@ -57,7 +57,8 @@ const BADGE_TOP = 10;
 // 邊距是文字左右兩側各自的留白。數值比照「維修案件統計」頁籤（TicketCountChart）
 // 已確認過的版面。
 const BADGE_PADDING_X = 16;
-const TOOLTIP_SUB_FONT_SIZE = 11;
+const TOOLTIP_MAIN_FONT_SIZE = 16; // ECharts 預設 14，+2
+const TOOLTIP_SUB_FONT_SIZE = 13; // 原本 11，+2
 const FONT_FAMILY = "Calibri, 'PMingLiU', '新細明體', sans-serif";
 
 function prefersDark(): boolean {
@@ -329,8 +330,10 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         graphic,
         // 徽章現在跟標題齊平、不再另外佔一整列，圖例/繪圖區的起始位置跟著往上收，
         // 只有清冊圖表（兩行徽章）才需要多讓一點空間。
-        grid: { left: 48, right: 56, top: 145 + badgeAreaExtra, bottom: 60 },
-        legend: { top: 80 + badgeAreaExtra, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
+        // 圖例原本跟徽章底部留了過大的空白（量測約65px），改成跟使用者提供的參考
+        // 截圖一樣緊密排列——基準值各減44px，圖例跟繪圖區之間的間距維持不變。
+        grid: { left: 48, right: 56, top: 101 + badgeAreaExtra, bottom: 60 },
+        legend: { top: 36 + badgeAreaExtra, textStyle: { color: c.secondaryInk, fontFamily: FONT_FAMILY } },
         xAxis: {
           type: "category",
           data: weeks.map((w) => w.weekLabel),
@@ -367,7 +370,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
         // tooltip 額外標出完整日期區間（含年份）消除歧義。
         tooltip: {
           trigger: "axis",
-          textStyle: { fontFamily: FONT_FAMILY },
+          textStyle: { fontFamily: FONT_FAMILY, fontSize: TOOLTIP_MAIN_FONT_SIZE },
           formatter: (rawParams) => {
             const params = Array.isArray(rawParams) ? rawParams : [rawParams];
             if (params.length === 0) return "";
@@ -418,5 +421,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
     };
   }, [title, rangeLabel, weeks, showFail]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: 460 + computeBadgeAreaExtra(showFail) }} />;
+  // 416 = 460 - 44，圖例/繪圖區都往上收了 44px（見上方 grid/legend top 註解），
+  // 容器高度跟著減少，不然底部會多出一截空白。
+  return <div ref={containerRef} style={{ width: "100%", height: 416 + computeBadgeAreaExtra(showFail) }} />;
 }
