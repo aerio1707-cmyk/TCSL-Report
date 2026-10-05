@@ -32,8 +32,8 @@ const CHART_COLORS = {
 const BADGE_FILL = "#c9670b";
 const BADGE_TEXT = "#ffffff";
 const BADGE_SUB_TEXT = "rgba(255, 255, 255, 0.85)";
-const BADGE_FONT_SIZE = 18;
-const BADGE_ANNOTATION_FONT_SIZE = 11;
+const BADGE_FONT_SIZE = 22;
+const BADGE_ANNOTATION_FONT_SIZE = 15;
 const BADGE_PADDING_X = 16;
 const BADGE_PADDING_Y = 8;
 const BADGE_LINE_GAP = 4;
@@ -90,8 +90,8 @@ export function TicketCountChart({ buckets, rangeLabel }: Props) {
           left: "center",
           top: 4,
           itemGap: 8,
-          textStyle: { fontSize: 23, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
-          subtextStyle: { fontSize: 13, color: c.secondaryInk, fontFamily: FONT_FAMILY },
+          textStyle: { fontSize: 27, color: c.primaryInk, fontWeight: 600, fontFamily: FONT_FAMILY },
+          subtextStyle: { fontSize: 17, color: c.secondaryInk, fontFamily: FONT_FAMILY },
         },
         graphic: [
           {
