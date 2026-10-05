@@ -8,6 +8,10 @@ interface Props {
   rangeLabel: string;
   weeks: WeeklyChannelBreakdown[];
   showFail: boolean; // 非清冊圖表沒有 FAIL 長條
+  // 系統開單的自動/手動拆解是清冊+非清冊合計（見 Ps41Page.tsx 的說明），這個
+  // 元件本身只看得到自己這張圖表的 weeks，所以由上層算好、依 weekKey 查表傳進來；
+  // 只有清冊圖表（showFail）的 tooltip 會用到。
+  combinedSystemByWeek?: Map<string, { auto: number; manual: number }>;
 }
 
 // 沿用 TicketCountChart 已驗證的 dataviz 色票規範：序列色階＋ink token 文字＋
@@ -168,7 +172,7 @@ function computeBadgeAreaExtra(showFail: boolean): number {
   return Math.max(0, BADGE_TOP + stackHeight - TITLE_BLOCK_HEIGHT);
 }
 
-export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props) {
+export function NotifyMethodChart({ title, rangeLabel, weeks, showFail, combinedSystemByWeek }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -389,16 +393,17 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
                 const reconcileSuffix = isSystemLine ? ` ${formatSystemReconcile(week.ghostTicketCount, undetectedTotal)}` : "";
                 const main = `${p.marker ?? ""}${p.seriesName}：${p.value}${totalSuffix}${reconcileSuffix}`;
                 if (!isSystemLine) return main;
+                // 系統開單的完整組成（PS4.1 的數據結構，見 ticketCountConsistency.ts）：
+                // 自主API自動偵測＋手動開立工單（兩者皆清冊+非清冊合計）＋GhostTicket＋
+                // 未開單(N)（兩者僅清冊才有）。資訊標籤空間有限，縮寫呈現、濃縮成一行，
+                // 取代原本「↳未開單明細」「↳GhostTicket」兩行分開列的版面。
+                const combined = combinedSystemByWeek?.get(week.weekKey) ?? { auto: 0, manual: 0 };
+                const structureTotal = combined.auto + combined.manual + week.ghostTicketCount + undetectedTotal;
                 const subStyle = `margin-left:16px;font-size:${TOOLTIP_SUB_FONT_SIZE}px;opacity:0.7`;
-                const subUndetected =
-                  `<span style="${subStyle}">` +
-                  `↳ 未開單(${undetectedTotal})：整排路燈不亮${week.undetectedWholeRowUnlitCount}` +
-                  `‧重複偵測${week.undetectedDisabledCount}‧其他${week.undetectedOtherCount}</span>`;
-                // 這裡沿用「↳」子項的縮排風格，但用全稱「GhostTicket」而不是徽章/
-                // 主行括號裡的縮寫「GT」——這是唯一一處刻意寫全稱的地方，方便第一次
-                // 看到這個詞的人知道 GT 是什麼的縮寫，其餘地方維持縮寫節省版面。
-                const subGhost = `<span style="${subStyle}">↳ GhostTicket : ${week.ghostTicketCount}</span>`;
-                return `${main}<br/>${subUndetected}<br/>${subGhost}`;
+                const subStructure =
+                  `<span style="${subStyle}">↳ API(${combined.auto}) + 手動(${combined.manual}) + GT(${week.ghostTicketCount}) + N(${undetectedTotal})` +
+                  ` = ${structureTotal}</span>`;
+                return `${main}<br/>${subStructure}`;
               })
               .join("<br/>");
             return `${week.weekLabel}　${dateRange}<br/>${lines}`;
@@ -419,7 +424,7 @@ export function NotifyMethodChart({ title, rangeLabel, weeks, showFail }: Props)
       window.removeEventListener("resize", handleResize);
       chart.dispose();
     };
-  }, [title, rangeLabel, weeks, showFail]);
+  }, [title, rangeLabel, weeks, showFail, combinedSystemByWeek]);
 
   // 416 = 460 - 44，圖例/繪圖區都往上收了 44px（見上方 grid/legend top 註解），
   // 容器高度跟著減少，不然底部會多出一截空白。

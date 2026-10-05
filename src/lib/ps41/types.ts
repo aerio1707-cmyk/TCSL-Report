@@ -65,6 +65,11 @@ export interface WeeklyChannelBreakdown {
   weekYear: number;
   weekLabel: string;
   systemCount: number; // 系統開單 = 自主API + 承商自主通報，且案件編號在案件匯出檔案裡查得到
+  // systemCount 再拆解：案件編號有對到 Info_Order 裡 type=G（手動開立工單）的
+  // 工單編號就算手動，其餘算自主API自動偵測。systemAutoCount + systemManualCount
+  // 恆等於 systemCount。
+  systemAutoCount: number;
+  systemManualCount: number;
   citizenCount: number; // 民眾通報 = 其餘 6 類
   failCount: number; // 僅清冊才有意義，非清冊固定 0
   // 以下四項是 Info_Order.csv 跟「系統開單」的對帳輔助數字，僅清冊才有意義

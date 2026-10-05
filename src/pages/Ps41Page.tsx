@@ -40,11 +40,13 @@ export function Ps41Page() {
   const consistencyCheck = useMemo(() => {
     if (!result || !weeklyStatsFull || weeklyStatsFull.listed.length === 0) return null;
     const lastWeek = weeklyStatsFull.listed[weeklyStatsFull.listed.length - 1];
+    const lastWeekUnlisted = weeklyStatsFull.unlisted.find((w) => w.weekKey === lastWeek.weekKey);
     return buildLastWeekConsistencyCheck(
       result.classifiedRows,
       result.infoOrderRowsData,
       result.lampListVersions,
       lastWeek,
+      lastWeekUnlisted,
       result.dispatchRows,
       result.caseMasterRows
     );
@@ -59,6 +61,24 @@ export function Ps41Page() {
     if (!weeklyStatsFull || !weekRange) return weeklyStatsFull;
     return filterWeeklyStatsRange(weeklyStatsFull, weekRange.startWeekKey, weekRange.endWeekKey);
   }, [weeklyStatsFull, weekRange]);
+
+  // 清冊圖表的 tooltip 要顯示「系統開單」的完整組成（自動/手動開單都是清冊+
+  // 非清冊合計，GT/N僅清冊才有），這份合計跨了清冊/非清冊兩張圖表的資料，
+  // 只有這裡（兩份資料都拿得到）算得出來，算好以後用 weekKey 當索引傳給
+  // NotifyMethodChart，圖表元件本身不需要知道另一張圖表的資料。
+  const combinedSystemByWeek = useMemo(() => {
+    if (!weeklyStatsInRange) return new Map<string, { auto: number; manual: number }>();
+    const unlistedByWeek = new Map(weeklyStatsInRange.unlisted.map((w) => [w.weekKey, w]));
+    return new Map(
+      weeklyStatsInRange.listed.map((w) => {
+        const unlisted = unlistedByWeek.get(w.weekKey);
+        return [
+          w.weekKey,
+          { auto: w.systemAutoCount + (unlisted?.systemAutoCount ?? 0), manual: w.systemManualCount + (unlisted?.systemManualCount ?? 0) },
+        ];
+      })
+    );
+  }, [weeklyStatsInRange]);
 
   const rangeLabel = weekRange ? formatWeekRangeAsDates(weekRange.startWeekKey, weekRange.endWeekKey) : "";
 
@@ -206,6 +226,24 @@ export function Ps41Page() {
               )}
             </div>
           )}
+          <div className="summary-line">
+            <span className="summary-key">PS4.1</span>
+            <span className="summary-value">
+              系統開單 {consistencyCheck.ps41Breakdown.systemAutoCount + consistencyCheck.ps41Breakdown.systemManualCount}（自主API{" "}
+              {consistencyCheck.ps41Breakdown.systemAutoCount} + 手動開單 {consistencyCheck.ps41Breakdown.systemManualCount}） + GhostTicket{" "}
+              {consistencyCheck.ps41Breakdown.ghostCount} + 未開單(N) {consistencyCheck.ps41Breakdown.undetectedCount} = {consistencyCheck.ps41Total}
+            </span>
+          </div>
+          <div className="summary-line">
+            <span className="summary-key">開單數量統計</span>
+            <span className="summary-value">
+              實際開單數 {consistencyCheck.ticketCountBreakdown.ticketedCount} + 僅偵測未開單 {consistencyCheck.ticketCountBreakdown.undetectedCount}
+              {consistencyCheck.ticketCountBreakdown.missingLogCount > 0
+                ? ` + 查無建立紀錄 ${consistencyCheck.ticketCountBreakdown.missingLogCount}`
+                : ""}{" "}
+              = {consistencyCheck.ticketCountTotal}
+            </span>
+          </div>
         </section>
       )}
 
@@ -253,7 +291,13 @@ export function Ps41Page() {
                 </button>
               </div>
             </div>
-            <NotifyMethodChart title="通報方式統計(清冊)" rangeLabel={rangeLabel} weeks={weeklyStatsInRange.listed} showFail />
+            <NotifyMethodChart
+              title="通報方式統計(清冊)"
+              rangeLabel={rangeLabel}
+              weeks={weeklyStatsInRange.listed}
+              showFail
+              combinedSystemByWeek={combinedSystemByWeek}
+            />
             <NotifyMethodChart title="通報方式統計(非清冊)" rangeLabel={rangeLabel} weeks={weeklyStatsInRange.unlisted} showFail={false} />
           </section>
         </>

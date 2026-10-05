@@ -1,3 +1,4 @@
+import { extractTicketNumber } from "../caseFiles/extractTicketNumber";
 import type { InfoOrderRow } from "../caseFiles/types";
 import { classifyInfoOrderRows } from "./infoOrderReconcile";
 import type { LampListVersion } from "./lampListVersions";
@@ -19,6 +20,8 @@ function newBucket(weekKey: string, weekYear: number, weekLabel: string): Mutabl
     weekYear,
     weekLabel,
     systemCount: 0,
+    systemAutoCount: 0,
+    systemManualCount: 0,
     citizenCount: 0,
     failCount: 0,
     ghostTicketCount: 0,
@@ -59,14 +62,29 @@ export function buildWeeklyStats(
     unlistedMap.set(w.weekKey, newBucket(w.weekKey, w.weekYear, w.weekLabel));
   }
 
+  // 系統開單案件裡，哪些其實是「手動開立工單」（Info_Order type=G）而不是自主API
+  // 自動偵測——用全部 Info_Order 資料比對案件編號，手動開單當下的「工單編號：」
+  // 紀錄不一定落在案件立案的同一週，所以不能只看本週的 Info_Order 列。
+  const manualTicketCaseNos = new Set(
+    infoOrderRows
+      .filter((r) => r.type === "G")
+      .map((r) => extractTicketNumber(r.notifyResult))
+      .filter((t) => t !== "")
+  );
+
   for (const row of classifiedRows) {
     if (!row.weekKey || !row.lampListStatus || !row.notifyCategory) continue;
     const map = row.lampListStatus === "清冊名單" ? listedMap : unlistedMap;
     const bucket = map.get(row.weekKey);
     if (!bucket) continue;
 
-    if (row.notifyCategory === "system") bucket.systemCount++;
-    else bucket.citizenCount++;
+    if (row.notifyCategory === "system") {
+      bucket.systemCount++;
+      if (manualTicketCaseNos.has(row.caseNo)) bucket.systemManualCount++;
+      else bucket.systemAutoCount++;
+    } else {
+      bucket.citizenCount++;
+    }
 
     const channel = row.reportSource as ChannelLabel;
     if (channel in bucket.channels) bucket.channels[channel]++;

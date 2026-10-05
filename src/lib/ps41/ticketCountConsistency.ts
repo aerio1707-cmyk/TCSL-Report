@@ -12,12 +12,30 @@ export interface DailyConsistencyRow {
   diff: number; // ticketCountTotal - ps41Total
 }
 
+// PS4.1 側總數的拆解：系統開單案件數（清冊+非清冊合計，再拆成自主API自動
+// 偵測／手動開立工單）＋GhostTicket＋未開單(N)。
+export interface Ps41Breakdown {
+  systemAutoCount: number;
+  systemManualCount: number;
+  ghostCount: number;
+  undetectedCount: number;
+}
+
+// 維修案件統計側總數的拆解：實際開單數＋僅偵測未開單數＋查無建立紀錄案件數。
+export interface TicketCountBreakdown {
+  ticketedCount: number;
+  undetectedCount: number;
+  missingLogCount: number;
+}
+
 export interface ConsistencyCheckResult {
   weekKey: string;
   weekLabel: string;
   ps41Total: number;
   ticketCountTotal: number;
   diff: number;
+  ps41Breakdown: Ps41Breakdown;
+  ticketCountBreakdown: TicketCountBreakdown;
   // 只列出有落差的日期，方便縮小人工檢查範圍；不猜落差原因，只給數字。
   dailyMismatches: DailyConsistencyRow[];
 }
@@ -38,6 +56,7 @@ export function buildLastWeekConsistencyCheck(
   infoOrderRows: InfoOrderRow[],
   lampListVersions: LampListVersion[],
   listedLastWeek: WeeklyChannelBreakdown,
+  unlistedLastWeek: WeeklyChannelBreakdown | undefined,
   dispatchRows: DispatchRow[],
   caseMasterRows: CaseMasterRow[]
 ): ConsistencyCheckResult {
@@ -48,8 +67,10 @@ export function buildLastWeekConsistencyCheck(
   sunday.setHours(23, 59, 59, 999);
   const endKey = dayKey(sunday);
 
-  // PS4.1 側，逐日累計：
-  // 1) 系統開單案件（不分清冊/非清冊），依立案日期歸日。
+  // 系統開單案件（不分清冊/非清冊），依立案日期歸日；自動/手動拆解沿用
+  // buildWeeklyStats.ts 已經算好的 systemAutoCount/systemManualCount（清冊+
+  // 非清冊各自一份），這裡不重算一次比對邏輯，避免跟那邊的判定兩邊各自維護、
+  // 以後改一邊忘了改另一邊而不同步。
   const ps41ByDay = new Map<string, number>();
   for (const row of classifiedRows) {
     if (row.notifyCategory !== "system") continue;
@@ -58,11 +79,15 @@ export function buildLastWeekConsistencyCheck(
     const key = dayKey(d);
     ps41ByDay.set(key, (ps41ByDay.get(key) ?? 0) + 1);
   }
+  const ps41SystemAutoCount = listedLastWeek.systemAutoCount + (unlistedLastWeek?.systemAutoCount ?? 0);
+  const ps41SystemManualCount = listedLastWeek.systemManualCount + (unlistedLastWeek?.systemManualCount ?? 0);
   // 2) 清冊範圍 Info_Order 的 GhostTicket／未開單（N），依偵測時間歸日——
   //    「已成案」(ticketed) 不重複加，上面系統開單案件數已經算過。
   const weekMap = new Map([[weekKey, { weekKey, weekYear: listedLastWeek.weekYear, weekLabel: listedLastWeek.weekLabel }]]);
   const knownCaseNos = new Set(classifiedRows.map((r) => r.caseNo));
   const classified = classifyInfoOrderRows(infoOrderRows, lampListVersions, weekMap, knownCaseNos);
+  let ps41GhostCount = 0;
+  let ps41UndetectedCount = 0;
   for (let i = 0; i < infoOrderRows.length; i++) {
     const c = classified[i];
     if (!c.status || c.weekKey !== weekKey || c.status === "ticketed") continue;
@@ -70,13 +95,21 @@ export function buildLastWeekConsistencyCheck(
     if (!d) continue;
     const key = dayKey(d);
     ps41ByDay.set(key, (ps41ByDay.get(key) ?? 0) + 1);
+    if (c.status === "ghost") ps41GhostCount++;
+    else ps41UndetectedCount++;
   }
 
   // 維修案件統計側，逐日累計：實際開單數 + 查無建立紀錄案件數 + 僅偵測未開單數。
   const buckets = buildTicketCountSeries(dispatchRows, caseMasterRows, { start: weekKey, end: endKey, granularity: "day" });
   const ticketByDay = new Map<string, number>();
+  let ticketedCount = 0;
+  let ticketUndetectedCount = 0;
+  let missingLogCount = 0;
   for (const b of buckets) {
     ticketByDay.set(b.key, b.ticketedCount + b.undetectedCount + b.missingLogCount);
+    ticketedCount += b.ticketedCount;
+    ticketUndetectedCount += b.undetectedCount;
+    missingLogCount += b.missingLogCount;
   }
 
   const dailyMismatches: DailyConsistencyRow[] = [];
@@ -101,6 +134,13 @@ export function buildLastWeekConsistencyCheck(
     ps41Total,
     ticketCountTotal,
     diff: ticketCountTotal - ps41Total,
+    ps41Breakdown: {
+      systemAutoCount: ps41SystemAutoCount,
+      systemManualCount: ps41SystemManualCount,
+      ghostCount: ps41GhostCount,
+      undetectedCount: ps41UndetectedCount,
+    },
+    ticketCountBreakdown: { ticketedCount, undetectedCount: ticketUndetectedCount, missingLogCount },
     dailyMismatches,
   };
 }
